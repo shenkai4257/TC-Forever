@@ -565,6 +565,11 @@ void CollectionMgr::LoadAccountItemAppearances(PreparedQueryResult knownAppearan
 
 void CollectionMgr::SaveAccountItemAppearances(LoginDatabaseTransaction trans)
 {
+    // Headless bot sessions have no battle.net account; battlenet_item_appearances has a
+    // foreign key on it, so skip the collection instead of failing every insert.
+    if (!_owner->GetBattlenetAccountId())
+        return;
+
     uint16 blockIndex = 0;
     boost::to_block_range(*_appearances, DynamicBitsetBlockOutputIterator([this, &blockIndex, trans = trans.get()](uint32 blockValue)
     {

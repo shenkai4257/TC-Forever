@@ -29,6 +29,7 @@
 #include "PetitionMgr.h"
 #include "PetitionPackets.h"
 #include "Player.h"
+#include "ScriptMgr.h"
 #include "World.h"
 #include <sstream>
 
@@ -266,6 +267,7 @@ void WorldSession::HandleSignPetition(WorldPackets::Petition::SignPetition& pack
     signResult.Item = packet.PetitionGUID;
 
     bool isSigned = petition->IsPetitionSignedByAccount(GetAccountId());
+    sScriptMgr->OnBeforePetitionSign(_player, packet.PetitionGUID, isSigned);
     if (isSigned)
     {
         signResult.Error = int32(PETITION_SIGN_ALREADY_SIGNED);

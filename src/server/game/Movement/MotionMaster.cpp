@@ -664,6 +664,14 @@ void MotionMaster::MovePoint(uint32 id, float x, float y, float z, bool generate
         fadeObject, std::move(scriptResult)));
 }
 
+void MotionMaster::MovePointBackwards(uint32 id, float x, float y, float z, bool generatePath /*= true*/,
+    Scripting::v2::ActionResultSetter<MovementStopReason>&& scriptResult /*= {}*/)
+{
+    TC_LOG_DEBUG("movement.motionmaster", "MotionMaster::MovePointBackwards: '{}', targeted point Id: {} (X: {}, Y: {}, Z: {})", _owner->GetGUID(), id, x, y, z);
+    Add(new PointMovementGenerator(id, x, y, z, generatePath, {}, {}, nullptr, nullptr, MovementWalkRunSpeedSelectionMode::Default, {}, {},
+        std::move(scriptResult), /*reverseOrientation*/ true));
+}
+
 void MotionMaster::MoveCloserAndStop(uint32 id, Unit* target, float distance)
 {
     float distanceToTravel = _owner->GetExactDist2d(target) - distance;

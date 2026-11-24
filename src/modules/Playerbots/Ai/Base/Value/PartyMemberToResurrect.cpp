@@ -1,0 +1,53 @@
+/*
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
+ */
+
+#include "PartyMemberToResurrect.h"
+#include "Battleground.h"
+#include "Playerbots.h"
+
+class IsTargetOfResurrectSpell : public SpellEntryPredicate
+{
+public:
+    bool Check(SpellInfo const* spellInfo) override
+    {
+        for (uint8 i = 0; i < 3; ++i)
+        {
+            if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_RESURRECT ||
+                spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_RESURRECT_NEW ||
+                spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_SELF_RESURRECT)
+                return true;
+        }
+
+        return false;
+    }
+};
+
+class FindDeadPlayer : public FindPlayerPredicate
+{
+public:
+    FindDeadPlayer(PartyMemberValue* value) : value(value) {}
+
+    bool Check(Unit* unit) override
+    {
+        Player* player = unit->ToPlayer();
+        return player && !player->IsResurrectRequested() && player->getDeathState() == CORPSE &&
+               !value->IsTargetOfSpellCast(player, predicate);
+    }
+
+private:
+    PartyMemberValue* value;
+    IsTargetOfResurrectSpell predicate;
+};
+
+Unit* PartyMemberToResurrect::Calculate()
+{
+    Battleground* bg = bot->GetBattleground();
+    if (bg && !bg->isArena())  // Spirit healers revive the dead in battlegrounds; arenas have none
+        return nullptr;
+
+    FindDeadPlayer finder(this);
+    return FindPartyMember(finder);
+}

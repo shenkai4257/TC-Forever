@@ -72,3 +72,6 @@ phase7a-compile-log.txt
 
 # rendered per machine from config/my.ini.template by scripts/install.ps1
 /config/my.ini
+
+# Playerbots DB baseline (67 MB, published as a GitHub Release asset: db-base-20261124)
+src/modules/Playerbots/sql/playerbots/base/playerbots_travelnode_path.sql

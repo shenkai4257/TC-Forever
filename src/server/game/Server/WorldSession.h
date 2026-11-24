@@ -1110,6 +1110,10 @@ class TC_GAME_API WorldSession
         bool DisallowHyperlinksAndMaybeKick(std::string const& str);
 
         void QueuePacket(WorldPacket&& new_packet);
+        // Pops the next packet from the receive queue (or null when empty). Server-driven sessions
+        // that inject CMSGs via QueuePacket drain them here; the regular Update path only consumes
+        // the queue when a socket is present.
+        std::unique_ptr<WorldPacket> NextQueuedPacket();
         bool Update(uint32 diff, PacketFilter& updater);
 
         /// Handle the authentication waiting queue (to be completed)
@@ -2030,10 +2034,11 @@ class TC_GAME_API WorldSession
         QueryCallbackProcessor& GetQueryProcessor() { return _queryProcessor; }
         TransactionCallback& AddTransactionCallback(TransactionCallback&& callback);
         SQLQueryHolderCallback& AddQueryHolderCallback(SQLQueryHolderCallback&& callback);
-
-    private:
+        // A headless bot session has no network update loop, so the module drives the
+        // async query/holder callbacks itself once per world tick.
         void ProcessQueryCallbacks();
 
+    private:
         QueryCallbackProcessor _queryProcessor;
 
         // Classic 1.60: SMSG_REGIONWIDE_CHARACTER_MAIL_DATA waits until the character list is shown (HandleCharEnum)

@@ -175,6 +175,9 @@ class TC_GAME_API MotionMaster
             MovementWalkRunSpeedSelectionMode speedSelectionMode = MovementWalkRunSpeedSelectionMode::Default, Optional<float> closeEnoughDistance = {},
             Optional<MovementFadeObject> fadeObject = {},
             Scripting::v2::ActionResultSetter<MovementStopReason>&& scriptResult = {});
+        // Point movement with the model orientation inversed while the spline runs (fleeing moves).
+        void MovePointBackwards(uint32 id, float x, float y, float z, bool generatePath = true,
+            Scripting::v2::ActionResultSetter<MovementStopReason>&& scriptResult = {});
         /*
          *  Makes the unit move toward the target until it is at a certain distance from it. The unit then stops.
          *  Only works in 2D.

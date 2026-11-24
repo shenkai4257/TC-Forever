@@ -1,0 +1,889 @@
+/*
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
+ */
+
+#include "DebugAction.h"
+#include "ChooseTravelTargetAction.h"
+#include "MapManager.h"
+#include "TerrainMgr.h"
+#include "Player.h"
+#include "PlayerbotAI.h"
+#include "Spell.h"
+#include "SpellMgr.h"
+#include "TravelMgr.h"
+
+bool DebugAction::Execute(Event event)
+{
+    Player* master = GetMaster();
+    if (!master)
+        return false;
+
+    std::string const text = event.getParam();
+
+    if (text == "scan")
+    {
+        sPlayerbotAIConfig.OpenLog("scan.csv", "w");
+
+        uint32 i = 0;
+        for (auto p : WorldPosition().getCreaturesNear())
+        {
+            WorldPosition pos(p->mapId, p->spawnPoint.GetPositionX(), p->spawnPoint.GetPositionY(), p->spawnPoint.GetPositionZ(), p->spawnPoint.GetOrientation());
+
+            uint32 areaId = 0;
+            uint32 zoneId = 0;
+            uint32 areaMapId = pos.GetMapId();
+        sTerrainMgr.GetZoneAndAreaId(PhaseShift(), zoneId, areaId, areaMapId, pos.GetPositionX(), pos.GetPositionY(),
+                                      pos.GetPositionZ());
+
+            std::ostringstream out;
+            out << zoneId << "," << areaId << "," << (pos.getAreaName().empty() ? "none" : pos.getAreaName()) << ",";
+
+            pos.printWKT(out);
+
+            sPlayerbotAIConfig.LogToFile("scan.csv", out.str().c_str());
+
+            if (zoneId == 0 && areaId == 0)
+            {
+                sPlayerbotAIConfig.LogToFile("x", out.str().c_str());
+            }
+            else
+            {
+                sPlayerbotAIConfig.LogToFile("y", out.str().c_str());
+            }
+
+            i = zoneId;
+        }
+        return i == 0;
+    }
+    else if (text.find("printmap") != std::string::npos)
+    {
+        TravelNodeMap::instance().printMap();
+        TravelNodeMap::instance().printNodeStore();
+        return true;
+    }
+    else if (text.find("travel ") != std::string::npos)
+    {
+        WorldPosition botPos = WorldPosition(bot);
+
+        std::string const destination = text.substr(7);
+
+        TravelDestination* dest = ChooseTravelTargetAction::FindDestination(bot, destination);
+        if (dest)
+        {
+            std::vector<WorldPosition*> points = dest->nextPoint(&botPos, true);
+
+            if (points.empty())
+                return false;
+
+            std::vector<WorldPosition> beginPath, endPath;
+            TravelNodeRoute route = TravelNodeMap::instance().getRoute(botPos, *points.front(), beginPath, bot);
+
+            std::ostringstream out;
+            out << "Traveling to " << dest->getTitle() << ": ";
+
+            for (auto node : route.getNodes())
+            {
+                out << node->getName() << ", ";
+            }
+
+            botAI->TellMasterNoFacing(out.str());
+
+            return true;
+        }
+        else
+        {
+            botAI->TellMasterNoFacing("Destination " + destination + " not found.");
+            return true;
+        }
+    }
+    else if (text.find("quest ") != std::string::npos)
+    {
+        uint32 questId = stoi(text.substr(6));
+
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+
+        if (!quest)
+        {
+            botAI->TellMasterNoFacing("Quest " + text.substr(6) + " not found.");
+            return false;
+        }
+
+        std::ostringstream out;
+
+        out << quest->GetLogTitle() << ": ";
+
+        QuestContainer* cont = TravelMgr::instance().quests[questId];
+
+        for (auto g : cont->questGivers)
+        {
+            out << g->getTitle() << " +" << cont->questGivers.size() << " ";
+            break;
+        }
+
+        for (auto g : cont->questTakers)
+        {
+            out << g->getTitle() << " +" << cont->questTakers.size() - 1;
+            break;
+        }
+
+        for (auto g : cont->questObjectives)
+        {
+            out << g->getTitle() << " +" << cont->questObjectives.size() - 1;
+            break;
+        }
+
+        botAI->TellMasterNoFacing(out);
+
+        return true;
+    }
+    else if (text.find("quest") != std::string::npos)
+    {
+        std::ostringstream out;
+        out << TravelMgr::instance().quests.size() << " quests ";
+
+        uint32 noT = 0, noG = 0, noO = 0;
+
+        for (auto q : TravelMgr::instance().quests)
+        {
+            if (q.second->questGivers.empty())
+                noG++;
+
+            if (q.second->questTakers.empty())
+                noT++;
+
+            if (q.second->questObjectives.empty())
+                noO++;
+        }
+
+        out << noG << "|" << noT << "|" << noO << " bad.";
+
+        botAI->TellMasterNoFacing(out);
+
+        return true;
+    }
+    else if (text.find("bquest") != std::string::npos)
+    {
+        std::ostringstream out;
+        out << "bad quests:";
+
+        // uint32 noT = 0, noG = 0, noO = 0; //not used, line marked for removal.
+
+        for (auto q : TravelMgr::instance().quests)
+        {
+            Quest const* quest = sObjectMgr->GetQuestTemplate(q.first);
+
+            if (!quest)
+            {
+                out << " " << q.first << " does not exists";
+                continue;
+            }
+
+            if (q.second->questGivers.empty() || q.second->questTakers.empty() || q.second->questObjectives.empty())
+                out << quest->GetLogTitle() << " ";
+
+            if (q.second->questGivers.empty())
+                out << " no G";
+
+            if (q.second->questTakers.empty())
+                out << " no T";
+
+            if (q.second->questObjectives.empty())
+                out << " no O";
+        }
+        botAI->TellMasterNoFacing(out);
+    }
+    else if (text.find("add node") != std::string::npos)
+    {
+        WorldPosition pos(bot);
+
+        std::string const name = "USER:" + text.substr(9);
+
+        /* TravelNode* startNode  = */ TravelNodeMap::instance().addNode(pos, name, false, false); // startNode not used, but addNode as side effect, fragment marked for removal.
+
+        for (auto& endNode : TravelNodeMap::instance().getNodes(pos, 2000))
+        {
+            endNode->setLinked(false);
+        }
+
+        botAI->TellMasterNoFacing("Node " + name + " created.");
+
+        TravelNodeMap::instance().setHasToGen();
+
+        return true;
+    }
+    else if (text.find("rem node") != std::string::npos)
+    {
+        WorldPosition pos(bot);
+
+        TravelNode* startNode = TravelNodeMap::instance().getNode(pos, nullptr, 50);
+
+        if (!startNode)
+            return false;
+
+        if (startNode->isImportant())
+        {
+            botAI->TellMasterNoFacing("Node can not be removed.");
+        }
+
+        TravelNodeMap::instance().m_nMapMtx.lock();
+        TravelNodeMap::instance().removeNode(startNode);
+        botAI->TellMasterNoFacing("Node removed.");
+        TravelNodeMap::instance().m_nMapMtx.unlock();
+
+        TravelNodeMap::instance().setHasToGen();
+
+        return true;
+    }
+    else if (text.find("reset node") != std::string::npos)
+    {
+        for (auto& node : TravelNodeMap::instance().getNodes())
+            node->setLinked(false);
+        return true;
+    }
+    else if (text.find("reset path") != std::string::npos)
+    {
+        for (auto& node : TravelNodeMap::instance().getNodes())
+            for (auto& path : *node->getLinks())
+                node->removeLinkTo(path.first, true);
+        return true;
+    }
+    else if (text.find("gen node") != std::string::npos)
+    {
+        // Pathfinder
+        TravelNodeMap::instance().generateNodes();
+        return true;
+    }
+    else if (text.find("gen path") != std::string::npos)
+    {
+        TravelNodeMap::instance().generatePaths();
+        return true;
+    }
+    else if (text.find("crop path") != std::string::npos)
+    {
+        TravelNodeMap::instance().removeUselessPaths();
+        return true;
+    }
+    else if (text.find("save node") != std::string::npos)
+    {
+        TravelNodeMap::instance().printNodeStore();
+        TravelNodeMap::instance().saveNodeStore();
+        return true;
+    }
+    else if (text.find("load node") != std::string::npos)
+    {
+        std::thread t(
+            []
+            {
+                TravelNodeMap::instance().removeNodes();
+                TravelNodeMap::instance().loadNodeStore();
+            });
+
+        t.detach();
+
+        return true;
+    }
+    else if (text.find("show node") != std::string::npos)
+    {
+        WorldPosition pos(bot);
+
+        std::vector<TravelNode*> nodes = TravelNodeMap::instance().getNodes(pos, 500);
+
+        for (auto& node : nodes)
+        {
+            for (auto& l : *node->getLinks())
+            {
+                Unit* start = nullptr;
+                GuidVector units;
+
+                // uint32 time = 60 * IN_MILLISECONDS; //not used, line marked for removal.
+
+                std::vector<WorldPosition> ppath = l.second->getPath();
+
+                for (auto p : ppath)
+                {
+                    Creature* wpCreature =
+                        bot->SummonCreature(1, p.GetPositionX(), p.GetPositionY(), p.GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, Milliseconds(20000));
+                    // addAura(246, wpCreature);
+                    units.push_back(wpCreature->GetGUID());
+
+                    if (!start)
+                        start = wpCreature;
+                }
+
+                // FakeSpell(1064, bot, start, units.front(), units, {}, pos, pos);
+            }
+        }
+        return true;
+    }
+    else if (text.find("dspell ") != std::string::npos)
+    {
+        uint32 spellEffect = stoi(text.substr(7));
+
+        Unit* prev = bot;
+
+        for (float i = 0; i < 60; i++)
+        {
+            float ang = i / 60 * static_cast<float>(M_PI) * 4;
+            float dist = i / 60 * 30;
+
+            WorldPosition botPos(bot);
+
+            botPos.setX(botPos.GetPositionX() + cos(ang) * dist);
+            botPos.setY(botPos.GetPositionY() + sin(ang) * dist);
+            botPos.setZ(botPos.getHeight() + 2);
+
+            Creature* wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                       TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+            FakeSpell(spellEffect, wpCreature, wpCreature, prev->GetGUID(), {}, {}, botPos, botPos);
+
+            prev = wpCreature;
+        }
+        return true;
+    }
+    else if (text.find("vspell ") != std::string::npos)
+    {
+        uint32 spellEffect = stoi(text.substr(7));
+
+        // Unit* prev = bot; //not used, line marked for removal.
+
+        for (float i = 0; i < 60; i++)
+        {
+            float ang = i / 60 * static_cast<float>(M_PI) * 4;
+            float dist = i / 60 * 30;
+
+            WorldPosition botPos(bot);
+
+            botPos.setX(botPos.GetPositionX() + cos(ang) * dist);
+            botPos.setY(botPos.GetPositionY() + sin(ang) * dist);
+            botPos.setZ(botPos.getHeight() + 2);
+
+            Creature* wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                       TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+            if (wpCreature)
+            {
+                // AC hand-rolled SMSG_PLAY_SPELL_VISUAL; 12.x plays it directly.
+                wpCreature->SendPlaySpellVisual(wpCreature, spellEffect, 0, 0, 0.0f);
+            }
+        }
+        return true;
+    }
+    else if (text.find("aspell ") != std::string::npos)
+    {
+        uint32 spellEffect = stoi(text.substr(7));
+
+        // Unit* prev = bot; //not used, line marked for removal.
+
+        for (float i = 0; i < 60; i++)
+        {
+            float ang = i / 60 * static_cast<float>(M_PI) * 4;
+            float dist = i / 60 * 30;
+
+            WorldPosition botPos(bot);
+
+            botPos.setX(botPos.GetPositionX() + cos(ang) * dist);
+            botPos.setY(botPos.GetPositionY() + sin(ang) * dist);
+            botPos.setZ(botPos.getHeight() + 2);
+
+            Creature* wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                       TEMPSUMMON_TIMED_DESPAWN, Milliseconds(uint32(5000.0f + i * 100.0f)));
+            wpCreature->SetObjectScale(0.5f);
+
+            if (wpCreature)
+            {
+                addAura(spellEffect, wpCreature);
+            }
+        }
+        return true;
+    }
+    else if (text.find("cspell ") != std::string::npos)
+    {
+        uint32 spellEffect = stoi(text.substr(7));
+
+        GuidVector units;
+
+        for (float i = 0; i < 60; i++)
+        {
+            float ang = i / 60 * static_cast<float>(M_PI) * 4;
+            float dist = i / 60 * 30;
+
+            WorldPosition botPos(bot);
+
+            botPos.setX(botPos.GetPositionX() + cos(ang) * dist);
+            botPos.setY(botPos.GetPositionY() + sin(ang) * dist);
+            botPos.setZ(botPos.getHeight() + 2);
+
+            Creature* wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                       TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+            units.push_back(wpCreature->GetGUID());
+        }
+
+        WorldPosition botPos(bot);
+
+        if (urand(0, 1))
+            FakeSpell(spellEffect, bot, bot, ObjectGuid::Empty, units, {}, botPos, botPos);
+        else
+            FakeSpell(spellEffect, bot, bot, units.front(), units, {}, botPos, botPos);
+
+        return true;
+    }
+    else if (text.find("fspell ") != std::string::npos)
+    {
+        uint32 spellEffect = stoi(text.substr(7));
+
+        // AC hand-rolled SMSG_SPELL_START/GO here; 12.x plays the visual directly.
+        bot->SendPlaySpellVisual(bot, spellEffect, 0, 0, 0.0f);
+
+        return true;
+    }
+    else if (text.find("spell ") != std::string::npos)
+    {
+        uint32 spellEffect = stoi(text.substr(6));
+        bot->SendPlaySpellVisual(bot, spellEffect, 0, 0, 0.0f);
+        return true;
+    }
+    else if (text.find("tspellmap") != std::string::npos)
+    {
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 spellEffect = stoi(text.substr(10));
+                uint32 effect = dx + dy * 10 + spellEffect * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                Creature* wpCreature =
+                    bot->SummonCreature((dy == 0 && (dx == 0 || dx == 2)) ? 6 : 2, botPos.GetPositionX(), botPos.GetPositionY(),
+                                        botPos.GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                if (wpCreature)
+                {
+                    std::ostringstream out;
+                    out << "effect ";
+                    out << effect;
+
+                    std::string const& Cname = out.str();
+
+                    wpCreature->Say(Cname.c_str(), LANG_UNIVERSAL, master);
+                }
+            }
+        }
+        return true;
+    }
+    else if (text.find("uspellmap") != std::string::npos)
+    {
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 spellEffect = stoi(text.substr(10));
+                uint32 effect = dx + dy * 10 + spellEffect * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                bot->SummonCreature(effect, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                    TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+            }
+        }
+        return true;
+    }
+    else if (text.find("dspellmap") != std::string::npos)
+    {
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 spellEffect = stoi(text.substr(10));
+                uint32 effect = dx + dy * 10 + spellEffect * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                FakeSpell(effect, bot, nullptr, ObjectGuid::Empty, {}, {}, botPos, botPos, true);
+            }
+        }
+        return true;
+    }
+    else if (text.find("vspellmap") != std::string::npos)
+    {
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 spellEffect = stoi(text.substr(10));
+                uint32 effect = dx + dy * 10 + spellEffect * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                Creature* wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                           TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                if (wpCreature)
+                {
+                    // AC hand-rolled SMSG_PLAY_SPELL_VISUAL and replayed it later;
+                    // 12.x plays it straight on the creature.
+                    wpCreature->SendPlaySpellVisual(wpCreature, effect, 0, 0, 0.0f);
+                }
+            }
+        }
+
+        return true;
+    }
+    else if (text.find("ispellmap") != std::string::npos)
+    {
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 spellEffect = stoi(text.substr(10));
+                uint32 effect = dx + dy * 10 + spellEffect * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                Creature* wpCreature =
+                    bot->SummonCreature((dy == 0 && (dx == 0 || dx == 2)) ? 6 : 2, botPos.GetPositionX(), botPos.GetPositionY(),
+                                        botPos.GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                if (wpCreature)
+                {
+                    // AC sent a hand-rolled SMSG_PLAY_SPELL_IMPACT; 12.x plays the
+                    // visual straight on the creature.
+                    wpCreature->SendPlaySpellVisual(wpCreature, effect, 0, 0, 0.0f);
+                }
+            }
+        }
+
+        return true;
+    }
+    else if (text.find("cspellmap") != std::string::npos)
+    {
+        Creature* wpCreature = nullptr;
+        Creature* lCreature = nullptr;
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 spellEffect = stoi(text.substr(10));
+                uint32 effect = dx + dy * 10 + spellEffect * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                wpCreature = bot->SummonCreature((dy == 0 && (dx == 0 || dx == 2)) ? 6 : 2, botPos.GetPositionX(),
+                                                 botPos.GetPositionY(), botPos.GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                if (wpCreature && lCreature)
+                {
+                    wpCreature->CastSpell(lCreature, effect, TRIGGERED_FULL_MASK);
+                }
+
+                lCreature = wpCreature;
+            }
+        }
+        return true;
+    }
+    else if (text.find("aspellmap") != std::string::npos)
+    {
+        Creature* wpCreature = nullptr;
+
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 spellEffect = stoi(text.substr(10));
+                uint32 effect = dx + dy * 10 + spellEffect * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                 TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                if (wpCreature)
+                {
+                    addAura(effect, wpCreature);
+                }
+            }
+        }
+        return true;
+    }
+    else if (text.find("gspellmap") != std::string::npos)
+    {
+        GuidVector all_targets;  // = { bot->GetGUID(), master->GetGUID() };
+        // std::GuidVector all_dummies = { bot->GetGUID(), master->GetGUID() };
+
+        /*GuidVector a_targets = *context->GetValue<GuidVector >("all targets");
+        for (auto t : a_targets)
+        {
+            all_targets.push_back(t);
+        }
+        */
+
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                Creature* wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                           TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                all_targets.push_back(wpCreature->GetGUID());
+            }
+        }
+
+        all_targets.push_back(master->GetGUID());
+        all_targets.push_back(bot->GetGUID());
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        for (uint32 i = 0; i < 2; i++)
+            for (int32 dx = 0; dx < 10; dx++)
+            {
+                for (int32 dy = 0; dy < 10; dy++)
+                {
+                    uint32 spellEffect = stoi(text.substr(10));
+                    uint32 effect = dx + dy * 10 + spellEffect * 100;
+
+                    uint32 i = dx + dy * 10;
+                    GuidVector hits, miss;
+
+                    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(effect, DIFFICULTY_NONE);
+                    if (spellInfo && spellInfo->Speed > 0)
+                        for (auto tar : all_targets)
+                        {
+                            // hits.push_back(tar);
+
+                            switch (urand(0, 10))
+                            {
+                                case 0:
+                                    hits.push_back(tar);
+                                    break;
+                                case 1:
+                                    miss.push_back(tar);
+                                    break;
+                                case 2:
+                                case 3:
+                                    break;
+                            }
+                        }
+
+                    Unit* realCaster = botAI->GetUnit(
+                        all_targets[i]);  // botAI->GetUnit(all_targets[urand(0, all_targets.size() - 1)]);
+                    Unit* caster = botAI->GetUnit(
+                        all_targets[i]);  // botAI->GetUnit(all_targets[urand(0, all_targets.size() - 1)]);
+                    Unit* target = botAI->GetUnit(all_targets[i + 1]);
+
+                    if (!realCaster)
+                        realCaster = bot;
+
+                    if (!caster)
+                        caster = bot;
+
+                    if (!target)
+                        target = master;
+
+                    FakeSpell(effect, realCaster, caster, target->GetGUID(), hits, miss, WorldPosition(caster),
+                              WorldPosition(target));
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                }
+            }
+        return true;
+    }
+    else if (text.find("mspellmap") != std::string::npos)
+    {
+        GuidVector all_targets;
+
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                Creature* wpCreature = bot->SummonCreature(2334, botPos.GetPositionX(), botPos.GetPositionY(), botPos.GetPositionZ(), 0,
+                                                           TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                all_targets.push_back(wpCreature->GetGUID());
+            }
+        }
+
+        all_targets.push_back(master->GetGUID());
+        all_targets.push_back(bot->GetGUID());
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        for (uint32 i = 0; i < 2; i++)
+            for (int32 dx = 0; dx < 10; dx++)
+            {
+                for (int32 dy = 0; dy < 10; dy++)
+                {
+                    uint32 spellEffect = stoi(text.substr(10));
+                    uint32 effect = dx + dy * 10 + spellEffect * 100;
+
+                    uint32 i = dx + dy * 10;
+                    GuidVector hits, miss;
+
+                    // SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(effect, DIFFICULTY_NONE); //not used, line marked for removal.
+                    for (auto tar : all_targets)
+                    {
+                        // hits.push_back(tar);
+                        switch (urand(0, 10))
+                        {
+                            case 0:
+                                hits.push_back(tar);
+                                break;
+                            case 1:
+                                miss.push_back(tar);
+                                break;
+                            case 2:
+                            case 3:
+                                break;
+                        }
+                    }
+
+                    Unit* realCaster = botAI->GetUnit(
+                        all_targets[i]);  // botAI->GetUnit(all_targets[urand(0, all_targets.size() - 1)]);
+                    Unit* caster = botAI->GetUnit(
+                        all_targets[i]);  // botAI->GetUnit(all_targets[urand(0, all_targets.size() - 1)]);
+                    Unit* target = botAI->GetUnit(all_targets[i + 1]);
+
+                    if (!realCaster)
+                        realCaster = bot;
+
+                    if (!caster)
+                        caster = bot;
+
+                    if (!target)
+                        target = master;
+
+                    caster->SendPlaySpellVisual(caster, 5036, 0, 0, 0.0f);
+                    FakeSpell(effect, realCaster, caster, target->GetGUID(), hits, miss, WorldPosition(caster),
+                              WorldPosition(target));
+
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                }
+            }
+
+        return true;
+    }
+    else if (text.find("soundmap") != std::string::npos)
+    {
+        uint32 soundEffects = stoi(text.substr(9));
+        for (int32 dx = 0; dx < 10; dx++)
+        {
+            for (int32 dy = 0; dy < 10; dy++)
+            {
+                uint32 effect = dx + dy * 10 + soundEffects * 100;
+                WorldPosition botPos(bot);
+
+                botPos.setX(botPos.GetPositionX() + (dx - 5) * 5);
+                botPos.setY(botPos.GetPositionY() + (dy - 5) * 5);
+                botPos.setZ(botPos.getHeight());
+
+                Creature* wpCreature =
+                    bot->SummonCreature((dy == 0 && (dx == 0 || dx == 2)) ? 6 : 2, botPos.GetPositionX(), botPos.GetPositionY(),
+                                        botPos.GetPositionZ(), 0, TEMPSUMMON_TIMED_DESPAWN, Milliseconds(10000));
+
+                wpCreature->PlayDistanceSound(effect);
+            }
+        }
+    }
+    else if (text.find("sounds") != std::string::npos)
+    {
+        uint32 soundEffects = stoi(text.substr(6));
+
+        for (uint32 i = 0; i < 100; i++)
+        {
+            bot->PlayDistanceSound(i + soundEffects * 100);
+            bot->Say(std::to_string(i + soundEffects * 100), LANG_UNIVERSAL);
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        }
+        return true;
+    }
+    else if (text.find("dsound") != std::string::npos)
+    {
+        uint32 soundEffect = stoi(text.substr(7));
+        bot->PlayDirectSound(soundEffect);
+        return true;
+    }
+    else if (text.find("dsound") != std::string::npos)
+    {
+        uint32 soundEffect = stoi(text.substr(7));
+        bot->PlayDirectSound(soundEffect);
+        return true;
+    }
+    else if (text.find("sound") != std::string::npos)
+    {
+        uint32 soundEffect = stoi(text.substr(6));
+        bot->PlayDistanceSound(soundEffect);
+        return true;
+    }
+
+    std::string const response = botAI->HandleRemoteCommand(text);
+    botAI->TellMaster(response);
+    return true;
+}
+
+void DebugAction::FakeSpell(uint32 spellId, Unit* truecaster, Unit* caster, ObjectGuid target, GuidVector otherTargets,
+                            GuidVector missTargets, WorldPosition source, WorldPosition dest, bool forceDest)
+{
+    // AC hand-rolled the 3.3.5 SMSG_SPELL_START/GO packets here; 12.x has no
+    // compatible wire format to forge and the honest way to play a visual is
+    // Unit::SendPlaySpellVisual. The spell id doubles as the visual id, as the
+    // AC code used it for the animation and the projectile both.
+    Unit* const broadcaster = caster ? caster : truecaster;
+    Unit* const visualTarget = botAI->GetUnit(target);
+
+    if (visualTarget)
+        broadcaster->SendPlaySpellVisual(visualTarget, spellId, 0, 0, 0.0f);
+    else
+        broadcaster->SendPlaySpellVisual(Position(dest.GetPositionX(), dest.GetPositionY(), dest.GetPositionZ()), spellId, 0, 0, 0.0f);
+}
+
+void DebugAction::addAura(uint32 spellId, Unit* target)
+{
+    if (!target)
+        return;
+
+    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
+    if (!spellInfo)
+        return;
+
+    if (!target->IsAlive() && !spellInfo->HasAttribute(SPELL_ATTR0_PASSIVE) &&
+        !spellInfo->HasAttribute(SPELL_ATTR2_ALLOW_DEAD_TARGET))
+        return;
+
+    target->AddAura(spellInfo, MAX_EFFECT_MASK, target);
+}

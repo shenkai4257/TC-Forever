@@ -266,9 +266,19 @@ void WorldSession::SendPacket(WorldPacket const* packet, bool forced /*= false*/
         conIdx = packet->GetConnection();
     }
 
+    // Headless bot sessions have no socket but their module still consumes the packets
+    // (bot AI reacts to server output), so the script hook runs before this check.
+    sScriptMgr->OnPacketSend(this, *packet);
+
     if (!m_Socket[conIdx])
     {
-        TC_LOG_ERROR("network.opcode", "Prevented sending of {} to non existent socket {} to {}", GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())), uint32(conIdx), GetPlayerInfo());
+        // A headless bot session never has a socket: the hook above already handed the
+        // packet to the module, so dropping it is the expected path. Logging it as an
+        // error floods the log (thousands of packets per bot per minute).
+        if (IsBot())
+            TC_LOG_TRACE("network.opcode", "Dropped {} for headless bot {}", GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())), GetPlayerInfo());
+        else
+            TC_LOG_ERROR("network.opcode", "Prevented sending of {} to non existent socket {} to {}", GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())), uint32(conIdx), GetPlayerInfo());
         return;
     }
 
@@ -315,8 +325,6 @@ void WorldSession::SendPacket(WorldPacket const* packet, bool forced /*= false*/
     }
 #endif                                                      // !TRINITY_DEBUG
 
-    sScriptMgr->OnPacketSend(this, *packet);
-
     TC_LOG_TRACE("network.opcode", "S->C: {} {}", GetPlayerInfo(), GetOpcodeNameForLogging(static_cast<OpcodeServer>(packet->GetOpcode())));
     m_Socket[conIdx]->SendPacket(*packet);
 }
@@ -343,6 +351,15 @@ void WorldSession::AddInstanceConnection(WorldSession* session, std::weak_ptr<Wo
 void WorldSession::QueuePacket(WorldPacket&& new_packet)
 {
     _recvQueue.add(new WorldPacket(std::move(new_packet)));
+}
+
+std::unique_ptr<WorldPacket> WorldSession::NextQueuedPacket()
+{
+    WorldPacket* packet = nullptr;
+    if (!_recvQueue.next(packet))
+        return nullptr;
+
+    return std::unique_ptr<WorldPacket>(packet);
 }
 
 /// Logging helper for unexpected opcodes
@@ -445,6 +462,14 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
         OpcodeClient opcode = static_cast<OpcodeClient>(packet->GetOpcode());
         ClientOpcodeHandler const* opHandle = opcodeTable[opcode];
         TC_METRIC_DETAILED_TIMER("worldsession_update_opcode_time", TC_METRIC_TAG("opcode", opHandle->Name));
+
+        // Modules may veto a client packet before any handler sees it (bot logins/logouts).
+        if (!sScriptMgr->CanPacketReceive(this, *packet))
+        {
+            delete packet;
+            processedPackets++;
+            continue;
+        }
 
         try
         {
@@ -622,12 +647,17 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
             return false;                                       //Will remove this session from the world session map
     }
 
+    sScriptMgr->OnSessionUpdate(this, diff);
+
     return true;
 }
 
 /// %Log the player out
 void WorldSession::LogoutPlayer(bool save)
 {
+    if (_player)
+        sScriptMgr->OnPlayerBeforeLogout(_player);
+
     // finish pending transfers before starting the logout
     while (_player && _player->IsBeingTeleportedFar())
         HandleMoveWorldportAck();

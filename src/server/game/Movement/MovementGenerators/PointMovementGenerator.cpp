@@ -32,9 +32,10 @@ PointMovementGenerator::PointMovementGenerator(uint32 id, float x, float y, floa
     Unit const* faceTarget /*= nullptr*/, Movement::SpellEffectExtraData const* spellEffectExtraData /*= nullptr*/,
     MovementWalkRunSpeedSelectionMode speedSelectionMode /*= MovementWalkRunSpeedSelectionMode::Default*/,
     Optional<float> closeEnoughDistance /*= {}*/, Optional<MovementFadeObject> fadeObject /*= {}*/,
-    Scripting::v2::ActionResultSetter<MovementStopReason>&& scriptResult /*= {}*/)
+    Scripting::v2::ActionResultSetter<MovementStopReason>&& scriptResult /*= {}*/, bool reverseOrientation /*= false*/)
     : _movementId(id), _destination(x, y, z), _speed(speed), _generatePath(generatePath), _finalOrient(finalOrient),
-    i_faceTarget(faceTarget), _speedSelectionMode(speedSelectionMode), _closeEnoughDistance(closeEnoughDistance), _fadeObject(fadeObject)
+    i_faceTarget(faceTarget), _speedSelectionMode(speedSelectionMode), _closeEnoughDistance(closeEnoughDistance), _fadeObject(fadeObject),
+    _reverseOrientation(reverseOrientation)
 {
     this->Priority = MOTION_PRIORITY_NORMAL;
     this->Flags = MOVEMENTGENERATOR_FLAG_INITIALIZATION_PENDING;
@@ -106,6 +107,8 @@ bool PointMovementGenerator::Initialize(Unit* owner)
         init.SetFacing(*_finalOrient);
     if (_fadeObject)
         init.SetFadeObject(_fadeObject->Duration.value_or(1s));
+    if (_reverseOrientation)
+        init.SetBackward();
     switch (_speedSelectionMode)
     {
         case MovementWalkRunSpeedSelectionMode::Default:
@@ -167,6 +170,8 @@ bool PointMovementGenerator::Update(Unit* owner, uint32 /*diff*/)
         init.MoveTo(_destination.GetPositionX(), _destination.GetPositionY(), _destination.GetPositionZ(), _generatePath);
         if (_speed) // Default value for point motion type is 0.0, if 0.0 spline will use GetSpeed on unit
             init.SetVelocity(*_speed);
+        if (_reverseOrientation)
+            init.SetBackward();
         init.Launch();
 
         // Call for creature group update

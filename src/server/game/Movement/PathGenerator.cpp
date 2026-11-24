@@ -1770,7 +1770,13 @@ float PathGenerator::Dist3DSqr(G3D::Vector3 const& p1, G3D::Vector3 const& p2) c
 float PathGenerator::GetPathLength() const
 {
     float length = 0.0f;
-    for (std::size_t i = 0; i < _pathPoints.size() - 1; ++i)
+    // An empty (or single-point) path used to run this loop on size() - 1, which underflows for an
+    // empty vector and dereferenced the null data pointer (segfault at 0, WSL crash 2026-11-24:
+    // bots roaming on RandomMovementGenerator queried the length before a path was ever built).
+    if (_pathPoints.size() < 2)
+        return length;
+
+    for (std::size_t i = 0; i + 1 < _pathPoints.size(); ++i)
         length += (_pathPoints[i + 1] - _pathPoints[i]).length();
 
     return length;

@@ -377,6 +377,9 @@ Player::Player(WorldSession* session) : Unit(true), m_sceneMgr(this)
 
 Player::~Player()
 {
+    // Modules owning per-player data (bot AI/manager) release it here.
+    sScriptMgr->OnDestructPlayer(this);
+
     // it must be unloaded already in PlayerLogout and accessed only for logged in player
     //m_social = nullptr;
 
@@ -1191,6 +1194,8 @@ void Player::Update(uint32 p_time)
         SetTeleportState(TeleportState::NotTeleporting); // skip state check inside TeleportTo
         TeleportTo(m_teleport_dest, m_teleport_options, m_teleportSpellId);
     }
+
+    sScriptMgr->OnPlayerAfterUpdate(this, p_time);
 }
 
 void Player::Heartbeat()
@@ -2235,6 +2240,9 @@ void Player::SetXP(uint32 xp)
 
 void Player::GiveXP(uint32 xp, Unit* victim, float group_rate)
 {
+    // Modules (mod-playerbots) scale bot XP here; 12.x has no XP source field.
+    sScriptMgr->OnPlayerGiveXP(this, xp, victim, 0);
+
     if (xp < 1)
         return;
 

@@ -859,32 +859,46 @@ bool WorldObject::CanSeeOrDetect(WorldObject const* obj, CanSeeOrDetectExtraArgs
     if (this == obj)
         return true;
 
+    // Diagnosis (1/50 of the bots, creatures only): which step of the visibility chain rejects the unit.
+    Player const* diagViewer = ToPlayer();
+    bool const diagOn = diagViewer && diagViewer->GetGUID().GetCounter() % 50 == 0 && obj->IsCreature() &&
+                        !obj->IsPlayer();
+    auto const seeReject = [&](char const* reason)
+    {
+        if (diagOn)
+            TC_LOG_DEBUG("playerbots", "[see-diag] {} rejects entry {} ({}): {}", diagViewer->GetName(),
+                         obj->GetEntry(), obj->GetName(), reason);
+        return false;
+    };
+
     // death recap: the viewer sees the replay actors (private to them), not the live units standing there now
     if (Player const* viewer = ToPlayer(); viewer && viewer->IsWatchingDeathRecap() && obj->IsUnit() && !obj->IsPrivateObject())
-        return false;
+        return seeReject("viewer watching death recap");
 
-    if (obj->IsNeverVisibleFor(this, args.ImplicitDetection) || CanNeverSee(obj, args.IgnorePhaseShift))
-        return false;
+    if (obj->IsNeverVisibleFor(this, args.ImplicitDetection))
+        return seeReject("IsNeverVisibleFor");
+    if (CanNeverSee(obj, args.IgnorePhaseShift))
+        return seeReject("CanNeverSee (map/phase)");
 
     if (obj->IsAlwaysVisibleFor(this) || CanAlwaysSee(obj))
         return true;
 
     if (!args.IncludeAnyPrivateObject && (!obj->CheckPrivateObjectOwnerVisibility(this) || !CheckPrivateObjectOwnerVisibility(obj)))
-        return false;
+        return seeReject("private object owner visibility");
 
     if (SmoothPhasing const* smoothPhasing = obj->GetSmoothPhasing())
         if (smoothPhasing->IsBeingReplacedForSeer(GetGUID()))
-            return false;
+            return seeReject("smooth phasing replaced");
 
     if (!obj->IsPrivateObject() && !sConditionMgr->IsObjectMeetingVisibilityByObjectIdConditions(obj, this))
-        return false;
+        return seeReject("visibility conditions");
 
     // Spawn tracking
     if (!args.IncludeHiddenBySpawnTracking)
         if (Player const* player = ToPlayer())
             if (SpawnTrackingStateData const* spawnTrackingStateData = obj->GetSpawnTrackingStateDataForPlayer(player))
                 if (!spawnTrackingStateData->Visible)
-                    return false;
+                    return seeReject("spawn tracking hidden");
 
     bool corpseVisibility = false;
     if (args.DistanceCheck)
@@ -909,7 +923,7 @@ bool WorldObject::CanSeeOrDetect(WorldObject const* obj, CanSeeOrDetectExtraArgs
                 // Don't allow to detect vehicle accessories if you can't see vehicle
                 if (Unit const* vehicle = target->GetVehicleBase())
                     if (!thisPlayer->HaveAtClient(vehicle))
-                        return false;
+                        return seeReject("vehicle accessory without vehicle");
             }
         }
 
@@ -921,7 +935,7 @@ bool WorldObject::CanSeeOrDetect(WorldObject const* obj, CanSeeOrDetectExtraArgs
             viewpoint = this;
 
         if (!corpseCheck && !viewpoint->IsWithinDist(obj, GetSightRange(obj), false))
-            return false;
+            return seeReject("distance from viewpoint");
     }
 
     // GM visibility off or hidden NPC
@@ -943,20 +957,20 @@ bool WorldObject::CanSeeOrDetect(WorldObject const* obj, CanSeeOrDetectExtraArgs
             if (Player const* objPlayer = obj->ToPlayer())
             {
                 if (!thisPlayer->IsGroupVisibleFor(objPlayer))
-                    return false;
+                    return seeReject("ghost group visibility");
             }
             else
-                return false;
+                return seeReject("ghost visibility (creature)");
         }
         else
-            return false;
+            return seeReject("ghost visibility (non-player)");
     }
 
     if (obj->IsInvisibleDueToDespawn(this))
-        return false;
+        return seeReject("invisible due to despawn");
 
     if (!CanDetect(obj, args.ImplicitDetection, args.AlertCheck))
-        return false;
+        return seeReject("CanDetect (invisibility/stealth)");
 
     return true;
 }

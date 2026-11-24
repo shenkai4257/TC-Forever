@@ -34,7 +34,7 @@ class PointMovementGenerator : public MovementGenerator
             Unit const* faceTarget = nullptr, Movement::SpellEffectExtraData const* spellEffectExtraData = nullptr,
             MovementWalkRunSpeedSelectionMode speedSelectionMode = MovementWalkRunSpeedSelectionMode::Default,
             Optional<float> closeEnoughDistance = {}, Optional<MovementFadeObject> fadeObject = {},
-            Scripting::v2::ActionResultSetter<MovementStopReason>&& scriptResult = {});
+            Scripting::v2::ActionResultSetter<MovementStopReason>&& scriptResult = {}, bool reverseOrientation = false);
         PointMovementGenerator(PointMovementGenerator const&) = delete;
         PointMovementGenerator(PointMovementGenerator&&) = delete;
         PointMovementGenerator& operator=(PointMovementGenerator const&) = delete;
@@ -67,6 +67,8 @@ class PointMovementGenerator : public MovementGenerator
         MovementWalkRunSpeedSelectionMode _speedSelectionMode;
         Optional<float> _closeEnoughDistance;
         Optional<MovementFadeObject> _fadeObject;
+        //! inverses the model orientation while running the spline (moving backwards)
+        bool _reverseOrientation;
 };
 
 class AssistanceMovementGenerator : public PointMovementGenerator

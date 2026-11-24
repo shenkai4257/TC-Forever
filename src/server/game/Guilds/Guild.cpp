@@ -1555,6 +1555,12 @@ void Guild::HandleSetEmblem(WorldSession* session, EmblemInfo const& emblemInfo)
     }
 }
 
+void Guild::HandleSetEmblem(EmblemInfo const& emblemInfo)
+{
+    m_emblemInfo = emblemInfo;
+    m_emblemInfo.SaveToDB(m_id);
+}
+
 void Guild::HandleSetNewGuildMaster(WorldSession* session, std::string_view name, bool isSelfPromote)
 {
     Player* player = session->GetPlayer();
@@ -1659,6 +1665,29 @@ void Guild::HandleSetRankInfo(WorldSession* session, GuildRankId rankId, std::st
         packet.RankID = AsUnderlyingType(rankId);
         BroadcastPacket(packet.Write());
     }
+}
+
+void Guild::HandleSetRankInfo(GuildRankId rankId, Optional<std::string_view> name, Optional<uint32> rights /*= {}*/, Optional<uint32> moneyPerDayInGold /*= {}*/)
+{
+    RankInfo* rankInfo = GetRankInfo(rankId);
+    if (!rankInfo)
+        return;
+
+    if (!name && !rights && !moneyPerDayInGold)
+        return;
+
+    if (name)
+        rankInfo->SetName(*name);
+
+    if (rights)
+        rankInfo->SetRights(*rights);
+
+    if (moneyPerDayInGold)
+        _SetRankBankMoneyPerDay(rankId, *moneyPerDayInGold * GOLD);
+
+    WorldPackets::Guild::GuildEventRankChanged packet;
+    packet.RankID = AsUnderlyingType(rankId);
+    BroadcastPacket(packet.Write());
 }
 
 void Guild::HandleBuyBankTab(WorldSession* session, uint8 tabId)
@@ -3387,7 +3416,7 @@ inline std::string Guild::_GetRankName(GuildRankId rankId) const
     return "<unknown>";
 }
 
-inline uint32 Guild::_GetRankRights(GuildRankId rankId) const
+uint32 Guild::_GetRankRights(GuildRankId rankId) const
 {
     if (RankInfo const* rankInfo = GetRankInfo(rankId))
         return rankInfo->GetRights();
@@ -3453,7 +3482,7 @@ inline void Guild::_UpdateMemberWithdrawSlots(CharacterDatabaseTransaction trans
         member->UpdateBankTabWithdrawValue(trans, tabId, 1);
 }
 
-inline bool Guild::_MemberHasTabRights(ObjectGuid guid, uint8 tabId, int32 rights) const
+bool Guild::_MemberHasTabRights(ObjectGuid guid, uint8 tabId, int32 rights) const
 {
     if (Member const* member = GetMember(guid))
     {

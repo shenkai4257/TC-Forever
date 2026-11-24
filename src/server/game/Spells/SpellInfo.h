@@ -601,6 +601,16 @@ class TC_GAME_API SpellInfo
         std::vector<SpellEffectInfo> const& GetEffects() const { return _effects; }
         SpellEffectInfo const& GetEffect(SpellEffIndex index) const { ASSERT(index < _effects.size()); return _effects[index]; }
 
+        // 12.x stores only the effects a spell actually defines (vector sized to the last
+        // populated slot), while 3.3.5-era code indexes the fixed three slots. This accessor
+        // returns a zero-filled effect for an index past the end instead of asserting, so
+        // ported call sites cannot crash on spells with fewer effects.
+        SpellEffectInfo const& GetEffectOrDefault(SpellEffIndex index) const
+        {
+            static SpellEffectInfo const emptyEffect;
+            return uint32(index) < _effects.size() ? _effects[index] : emptyEffect;
+        }
+
         // spell diminishing returns
         DiminishingGroup GetDiminishingReturnsGroupForSpell() const;
         DiminishingReturnsType GetDiminishingReturnsGroupType() const;

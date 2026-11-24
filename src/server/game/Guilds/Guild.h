@@ -272,6 +272,8 @@ class TC_GAME_API EmblemInfo
 {
     public:
         EmblemInfo() : m_style(0), m_color(0), m_borderStyle(0), m_borderColor(0), m_backgroundColor(0) { }
+        explicit EmblemInfo(uint32 style, uint32 color, uint32 borderStyle, uint32 borderColor, uint32 backgroundColor)
+            : m_style(style), m_color(color), m_borderStyle(borderStyle), m_borderColor(borderColor), m_backgroundColor(backgroundColor) { }
 
         bool LoadFromDB(Field* fields);
         void SaveToDB(ObjectGuid::LowType guildId) const;
@@ -776,6 +778,10 @@ class TC_GAME_API Guild
         void HandleSetBankTabInfo(WorldSession* session, uint8 tabId, std::string_view name, std::string_view icon);
         void HandleSetMemberNote(WorldSession* session, std::string_view note, ObjectGuid guid, bool isPublic);
         void HandleSetRankInfo(WorldSession* session, GuildRankId rankId, std::string_view name, uint32 rights, uint32 moneyPerDay, std::array<GuildBankRightsAndSlots, GUILD_BANK_MAX_TABS> const& rightsAndSlots);
+        // Session-less variants for server-driven characters (bots): no result packet is sent and
+        // the caller has done its own permission checks (they are what the session versions wrap).
+        void HandleSetEmblem(EmblemInfo const& emblemInfo);
+        void HandleSetRankInfo(GuildRankId rankId, Optional<std::string_view> name, Optional<uint32> rights = {}, Optional<uint32> moneyPerDayInGold = {});
         void HandleBuyBankTab(WorldSession* session, uint8 tabId);
         void HandleInviteMember(WorldSession* session, std::string_view name);
         void HandleAcceptMember(WorldSession* session);
@@ -876,6 +882,10 @@ class TC_GAME_API Guild
         void AddGuildNews(uint8 type, ObjectGuid guid, uint32 flags, uint32 value);
 
         EmblemInfo const& GetEmblemInfo() const { return m_emblemInfo; }
+        // Read-only rank permission accessors for server-driven characters (bots).
+        bool HasRankRight(Player const* player, uint32 right) const { return _HasRankRight(player, right); }
+        uint32 GetRankRights(GuildRankId rankId) const { return _GetRankRights(rankId); }
+        bool MemberHasTabRights(ObjectGuid guid, uint8 tabId, int32 rights) const { return _MemberHasTabRights(guid, tabId, rights); }
         void ResetTimes(bool weekly);
 
         bool HasAchieved(uint32 achievementId) const;

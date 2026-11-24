@@ -10957,6 +10957,11 @@ void Unit::CleanupBeforeRemoveFromMap(bool finalCleanup)
             RemoveVehicleKit(true);
     }
 
+    // Abort pending events here: left to ~EventProcessor they run after m_spellMods is already
+    // destroyed, and cancelling a SpellEvent then hits freed memory in Player::RestoreSpellMods.
+    // Server-driven sessions outlive and re-enter maps far more often than real clients.
+    m_Events.KillAllEvents(false);
+
     ASSERT(GetGUID());
 
     // A unit may be in removelist and not in world, but it is still in grid
@@ -12288,6 +12293,11 @@ void Unit::SetMeleeAnimKitId(uint16 animKitId)
                     summoner->ToGameObject()->AI()->SummonedCreatureDies(creature, attacker);
             }
         }
+
+        // Fires for kill-credit holders (pets, totems, tapped kills), unlike OnCreatureKill which
+        // only fires when the player itself dealt the killing blow.
+        if (player)
+            sScriptMgr->OnPlayerCreatureKillCredit(player, creature);
     }
 
     // outdoor pvp things, do these after setting the death state, else the player activity notify won't work... doh...

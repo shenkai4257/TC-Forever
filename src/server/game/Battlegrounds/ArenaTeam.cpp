@@ -281,6 +281,34 @@ bool ArenaTeam::SetName(std::string const& name)
     return true;
 }
 
+void ArenaTeam::SetEmblem(uint32 backgroundColor, uint8 emblemStyle, uint32 emblemColor, uint8 borderStyle, uint32 borderColor)
+{
+    BackgroundColor = backgroundColor;
+    EmblemStyle = emblemStyle;
+    EmblemColor = emblemColor;
+    BorderStyle = borderStyle;
+    BorderColor = borderColor;
+
+    CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_ARENA_TEAM_EMBLEM);
+    stmt->setUInt32(0, BackgroundColor);
+    stmt->setUInt8(1, EmblemStyle);
+    stmt->setUInt32(2, EmblemColor);
+    stmt->setUInt8(3, BorderStyle);
+    stmt->setUInt32(4, BorderColor);
+    stmt->setUInt32(5, GetId());
+    CharacterDatabase.Execute(stmt);
+}
+
+void ArenaTeam::SetRatingForAll(uint32 rating)
+{
+    Stats.Rating = rating;
+
+    for (ArenaTeamMember& member : Members)
+        member.PersonalRating = rating;
+
+    SaveToDB(true);
+}
+
 void ArenaTeam::SetCaptain(ObjectGuid guid)
 {
     // Disable remove/promote buttons

@@ -1,0 +1,103 @@
+/*
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
+ */
+
+#include "MageActions.h"
+#include "PlayerbotAIConfig.h"
+#include "Playerbots.h"
+#include "ServerFacade.h"
+#include "SharedDefines.h"
+#include "UseItemAction.h"
+#include <cmath>
+
+std::vector<NextAction> CastMageArmorAction::getAlternatives()
+{
+    if (!botAI->HasSpell("mage armor"))
+        return NextAction::merge({ NextAction("ice armor") }, CastBuffSpellAction::getAlternatives());
+
+    return CastBuffSpellAction::getAlternatives();
+}
+
+bool UseManaSapphireAction::isUseful()
+{
+    Player* bot = botAI->GetBot();
+    return AI_VALUE2(bool, "combat", "self target") && bot->GetItemCount(33312, false) > 0;  // Mana Sapphire
+}
+
+bool UseManaEmeraldAction::isUseful()
+{
+    Player* bot = botAI->GetBot();
+    return AI_VALUE2(bool, "combat", "self target") && bot->GetItemCount(22044, false) > 0;  // Mana Emerald
+}
+
+bool UseManaRubyAction::isUseful()
+{
+    Player* bot = botAI->GetBot();
+    return AI_VALUE2(bool, "combat", "self target") && bot->GetItemCount(8008, false) > 0;  // Mana Ruby
+}
+
+bool UseManaCitrineAction::isUseful()
+{
+    Player* bot = botAI->GetBot();
+    return AI_VALUE2(bool, "combat", "self target") && bot->GetItemCount(8007, false) > 0;  // Mana Citrine
+}
+
+bool UseManaJadeAction::isUseful()
+{
+    Player* bot = botAI->GetBot();
+    return AI_VALUE2(bool, "combat", "self target") && bot->GetItemCount(5513, false) > 0;  // Mana Jade
+}
+
+bool UseManaAgateAction::isUseful()
+{
+    Player* bot = botAI->GetBot();
+    return AI_VALUE2(bool, "combat", "self target") && bot->GetItemCount(5514, false) > 0;  // Mana Agate
+}
+
+bool CastFrostNovaAction::isUseful()
+{
+    Unit* target = AI_VALUE(Unit*, "current target");
+    // 12.x has no template mechanic-immunity query; the spell immunity checks cover the case.
+    if (!target || !target->IsInWorld() || target->IsFrozen() ||
+        (target->ToCreature() && target->ToCreature()->IsImmuneToPC()))
+    {
+        return false;
+    }
+
+    return ServerFacade::instance().IsDistanceLessOrEqualThan(
+        AI_VALUE2(float, "distance", GetTargetName()), 10.f);
+}
+
+bool CastConeOfColdAction::isUseful()
+{
+    bool facingTarget = AI_VALUE2(bool, "facing", "current target");
+    bool targetClose = ServerFacade::instance().IsDistanceLessOrEqualThan(
+        AI_VALUE2(float, "distance", GetTargetName()), 10.f);
+
+    return facingTarget && targetClose;
+}
+
+bool CastBlastWaveAction::isUseful()
+{
+    if (!CastKnockbackSpellAction::isUseful())
+        return false;
+
+    Unit* target = AI_VALUE(Unit*, "current target");
+    if (!target)
+        return false;
+
+    bool targetClose = bot->IsWithinCombatRange(target, 10.0f);
+    return targetClose;
+}
+
+bool CastBlinkBackAction::Execute(Event event)
+{
+    Unit* target = AI_VALUE(Unit*, "current target");
+    if (!target)
+        return false;
+
+    bot->SetOrientation(bot->GetAbsoluteAngle(target) + M_PI);
+    return CastSpellAction::Execute(event);
+}

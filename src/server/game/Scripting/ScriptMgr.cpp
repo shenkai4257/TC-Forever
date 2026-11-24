@@ -1491,6 +1491,14 @@ void ScriptMgr::OnSocketClose(std::shared_ptr<WorldSocket> const& socket)
     FOREACH_SCRIPT(ServerScript)->OnSocketClose(socket);
 }
 
+bool ScriptMgr::CanPacketReceive(WorldSession* session, WorldPacket const& packet)
+{
+    bool result = true;
+    FOR_SCRIPTS(ServerScript, itr, end)
+        result = itr->second->CanPacketReceive(session, packet) && result;
+    return result;
+}
+
 void ScriptMgr::OnPacketReceive(WorldSession* session, WorldPacket const& packet)
 {
     if (SCR_REG_LST(ServerScript).empty())
@@ -1509,6 +1517,50 @@ void ScriptMgr::OnPacketSend(WorldSession* session, WorldPacket const& packet)
 
     WorldPacket copy(packet);
     FOREACH_SCRIPT(ServerScript)->OnPacketSend(session, copy);
+}
+
+void ScriptMgr::OnSessionUpdate(WorldSession* session, uint32 diff)
+{
+    FOREACH_SCRIPT(SessionScript)->OnSessionUpdate(session, diff);
+}
+
+void ScriptMgr::OnDestructPlayer(Player* player)
+{
+    // Player is already detached: handlers must only release ownership, not touch the object.
+    FOREACH_SCRIPT(MiscScript)->OnDestructPlayer(player);
+}
+
+bool ScriptMgr::OnModuleDatabasesLoading()
+{
+    bool result = true;
+    FOR_SCRIPTS(DatabaseScript, itr, end)
+        result = itr->second->OnModuleDatabasesLoading() && result;
+    return result;
+}
+
+void ScriptMgr::OnAfterDatabasesLoaded(uint32 updateFlags)
+{
+    FOREACH_SCRIPT(DatabaseScript)->OnAfterDatabasesLoaded(updateFlags);
+}
+
+void ScriptMgr::OnModuleDatabasesKeepAlive()
+{
+    FOREACH_SCRIPT(DatabaseScript)->OnModuleDatabasesKeepAlive();
+}
+
+void ScriptMgr::OnModuleDatabasesClosing()
+{
+    FOREACH_SCRIPT(DatabaseScript)->OnModuleDatabasesClosing();
+}
+
+void ScriptMgr::OnDatabaseWarnAboutSyncQueries(bool apply)
+{
+    FOREACH_SCRIPT(DatabaseScript)->OnDatabaseWarnAboutSyncQueries(apply);
+}
+
+void ScriptMgr::OnDatabaseGetDBRevision(std::map<std::string, std::string>& revisions)
+{
+    FOREACH_SCRIPT(DatabaseScript)->OnDatabaseGetDBRevision(revisions);
 }
 
 void ScriptMgr::OnOpenStateChange(bool open)
@@ -2220,6 +2272,31 @@ void ScriptMgr::OnPlayerUpdateZone(Player* player, uint32 newZone, uint32 newAre
     FOREACH_SCRIPT(PlayerScript)->OnUpdateZone(player, newZone, newArea);
 }
 
+void ScriptMgr::OnPlayerAfterUpdate(Player* player, uint32 updateTime)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnAfterUpdate(player, updateTime);
+}
+
+void ScriptMgr::OnPlayerBeforeLogout(Player* player)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnPlayerBeforeLogout(player);
+}
+
+void ScriptMgr::OnPlayerGiveXP(Player* player, uint32& amount, Unit* victim, uint8 xpSource)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnPlayerGiveXP(player, amount, victim, xpSource);
+}
+
+void ScriptMgr::OnPlayerCreatureKillCredit(Player* player, Creature* killed)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnCreatureKillCredit(player, killed);
+}
+
+void ScriptMgr::OnBeforePetitionSign(Player* player, ObjectGuid petitionGuid, bool& alreadySigned)
+{
+    FOREACH_SCRIPT(PlayerScript)->OnBeforePetitionSign(player, petitionGuid, alreadySigned);
+}
+
 void ScriptMgr::OnQuestStatusChange(Player* player, uint32 questId)
 {
     FOREACH_SCRIPT(PlayerScript)->OnQuestStatusChange(player, questId);
@@ -2597,6 +2674,68 @@ void ServerScript::OnPacketSend(WorldSession* /*session*/, WorldPacket& /*packet
 }
 
 void ServerScript::OnPacketReceive(WorldSession* /*session*/, WorldPacket& /*packet*/)
+{
+}
+
+bool ServerScript::CanPacketReceive(WorldSession* /*session*/, WorldPacket const& /*packet*/)
+{
+    return true;
+}
+
+SessionScript::SessionScript(char const* name) noexcept
+    : ScriptObject(name)
+{
+    ScriptRegistry<SessionScript>::Instance()->AddScript(this);
+}
+
+SessionScript::~SessionScript() = default;
+
+void SessionScript::OnSessionUpdate(WorldSession* /*session*/, uint32 /*diff*/)
+{
+}
+
+MiscScript::MiscScript(char const* name) noexcept
+    : ScriptObject(name)
+{
+    ScriptRegistry<MiscScript>::Instance()->AddScript(this);
+}
+
+MiscScript::~MiscScript() = default;
+
+void MiscScript::OnDestructPlayer(Player* /*player*/)
+{
+}
+
+DatabaseScript::DatabaseScript(char const* name) noexcept
+    : ScriptObject(name)
+{
+    ScriptRegistry<DatabaseScript>::Instance()->AddScript(this);
+}
+
+DatabaseScript::~DatabaseScript() = default;
+
+bool DatabaseScript::OnModuleDatabasesLoading()
+{
+    return false;
+}
+
+void DatabaseScript::OnAfterDatabasesLoaded(uint32 /*updateFlags*/)
+{
+}
+
+void DatabaseScript::OnModuleDatabasesKeepAlive()
+{
+}
+
+void DatabaseScript::OnModuleDatabasesClosing()
+{
+}
+
+void DatabaseScript::OnDatabaseWarnAboutSyncQueries(bool /*apply*/)
+{
+}
+
+void DatabaseScript::OnDatabaseGetDBRevision(std::map<std::string, std::string>& /*revisions*/)
 {
 }
 
@@ -3252,6 +3391,18 @@ void PlayerScript::OnUpdateZone(Player* /*player*/, uint32 /*newZone*/, uint32 /
 {
 }
 
+void PlayerScript::OnAfterUpdate(Player* /*player*/, uint32 /*updateTime*/)
+{
+}
+
+void PlayerScript::OnCreatureKillCredit(Player* /*player*/, Creature* /*killed*/)
+{
+}
+
+void PlayerScript::OnBeforePetitionSign(Player* /*player*/, ObjectGuid /*petitionGuid*/, bool& /*alreadySigned*/)
+{
+}
+
 void PlayerScript::OnMapChanged(Player* /*player*/)
 {
 }
@@ -3302,6 +3453,14 @@ void PlayerScript::OnGroupFinderSearch(Player* /*searcher*/)
 }
 
 void PlayerScript::OnLfgProposal(Player* /*player*/, uint32 /*proposalId*/)
+{
+}
+
+void PlayerScript::OnPlayerBeforeLogout(Player* /*player*/)
+{
+}
+
+void PlayerScript::OnPlayerGiveXP(Player* /*player*/, uint32& /*amount*/, Unit* /*victim*/, uint8 /*xpSource*/)
 {
 }
 
@@ -3536,6 +3695,9 @@ void PlayerChoiceScript::OnResponse(WorldObject* /*object*/, Player* /*player*/,
 // Specialize for each script type class like so:
 template class TC_GAME_API ScriptRegistry<SpellScriptLoader>;
 template class TC_GAME_API ScriptRegistry<ServerScript>;
+template class TC_GAME_API ScriptRegistry<SessionScript>;
+template class TC_GAME_API ScriptRegistry<MiscScript>;
+template class TC_GAME_API ScriptRegistry<DatabaseScript>;
 template class TC_GAME_API ScriptRegistry<WorldScript>;
 template class TC_GAME_API ScriptRegistry<FormulaScript>;
 template class TC_GAME_API ScriptRegistry<WorldMapScript>;
