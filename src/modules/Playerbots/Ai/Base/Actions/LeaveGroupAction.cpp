@@ -6,6 +6,7 @@
 
 #include "LeaveGroupAction.h"
 #include "Event.h"
+#include "PacketOperators.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
@@ -22,14 +23,25 @@ bool LeaveGroupAction::Execute(Event event)
 
 bool PartyCommandAction::Execute(Event event)
 {
+    // 12.x layout (WorldPackets::Party::PartyCommandResult::Write): 6 bit name length, 9 bit surname
+    // length, 4 bit command, 6 bit result, then result data, result guid and both names.
     WorldPacket& p = event.getPacket();
     p.rpos(0);
-    uint32 operation;
+    uint16 nameAndSurnameLength = 0;    // 6 bit name length, then 9 bit surname length
+    uint8 command = 0;
+    p >> WorldPackets::Bits<15>(nameAndSurnameLength) >> WorldPackets::Bits<4>(command);
+    p.ResetBitPos();
+
+    ObjectGuid resultGuid;
+    p.read_skip<uint32_t>();     // ResultData
+    p >> resultGuid;
+
+    uint8 const nameLength = uint8(nameAndSurnameLength >> 9);
     std::string member;
+    if (nameLength)
+        member = p.ReadString(nameLength);
 
-    p >> operation >> member;
-
-    if (operation != PARTY_OP_LEAVE)
+    if (command != PARTY_OP_LEAVE)
         return false;
     // Only leave if master has left the party, and randombot cannot set new master.
     Player* master = GetMaster();
@@ -58,6 +70,7 @@ bool UninviteAction::Execute(Event event)
 
     WorldPacket rawUninvite(p);
     WorldPackets::Party::PartyUninvite uninvite(std::move(rawUninvite));
+    uninvite.Read();   // the structured packet only fills TargetGUID from the raw bytes here
 
     if (bot->GetGUID() == uninvite.TargetGUID)
         return Leave();

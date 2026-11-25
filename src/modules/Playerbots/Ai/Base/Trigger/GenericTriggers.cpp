@@ -397,7 +397,7 @@ bool DeflectSpellTrigger::IsActive()
     if (spell == "feedback")
         return true;
 
-    SpellSchoolMask deflectSchool = SpellSchoolMask(deflectSpell->GetEffectOrDefault(EFFECT_0).MiscValue);
+    SpellSchoolMask deflectSchool = SpellSchoolMask(GetEffectOrDefault(deflectSpell, EFFECT_0).MiscValue);
     SpellSchoolMask attackSchool = SPELL_SCHOOL_MASK_NONE;
 
     if (Spell* spell = target->GetCurrentSpell(CURRENT_GENERIC_SPELL))
@@ -472,18 +472,15 @@ bool TimerTrigger::IsActive()
     return false;
 }
 
-bool TimerBGTrigger::IsActive()
+bool EnemyPlayerNear::IsActive() { return AI_VALUE(Unit*, "enemy player target"); }
+
+bool VehicleNearTrigger::IsActive()
 {
-    time_t now = time(nullptr);
-
-    if (now - lastCheck >= 60)
-    {
-        lastCheck = now;
-        return true;
-    }
-
-    return false;
+    GuidVector npcs = AI_VALUE(GuidVector, "nearest vehicles");
+    return npcs.size();
 }
+
+bool InVehicleTrigger::IsActive() { return botAI->IsInVehicle(); }
 
 bool HasNoAuraTrigger::IsActive() { return !botAI->HasAura(getName(), GetTarget()); }
 

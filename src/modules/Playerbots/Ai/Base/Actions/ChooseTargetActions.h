@@ -83,15 +83,6 @@ public:
     bool isUseful() override;
 };
 
-class AttackEnemyFlagCarrierAction : public AttackAction
-{
-public:
-    AttackEnemyFlagCarrierAction(PlayerbotAI* botAI) : AttackAction(botAI, "attack enemy flag carrier") {}
-
-    std::string const GetTargetName() override { return "enemy flag carrier"; }
-    bool isUseful() override;
-};
-
 class DropTargetAction : public Action
 {
 public:

@@ -6,6 +6,7 @@
 
 #include "ReadyCheckAction.h"
 #include "Event.h"
+#include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "PartyPackets.h"
 #include <memory>
@@ -107,19 +108,19 @@ public:
         {
             if (!bot->GetAmmoId())
             {
-                botAI->TellError("Out of ammo!");
+                botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_ready_no_ammo", {}));
                 return false;
             }
 
             if (!bot->GetPet())
             {
-                botAI->TellError("No pet!");
+                botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_ready_no_pet", {}));
                 return false;
             }
 
             if (bot->GetPet()->GetHappinessState() == Pet::UNHAPPY)
             {
-                botAI->TellError("Pet is unhappy!");
+                botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_ready_pet_unhappy", {}));
                 return false;
             }
         }

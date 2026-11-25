@@ -68,14 +68,6 @@ public:
         uint32_t requiredCount,
         std::string obectiveName
     );
-    static bool BroadcastQuestUpdateAddItem(
-        PlayerbotAI* botAI,
-        Player* bot,
-        Quest const* quest,
-        uint32_t availableCount,
-        uint32_t requiredCount,
-        ItemTemplate const* proto
-    );
     static bool BroadcastQuestUpdateFailedTimer(
         PlayerbotAI* botAI,
         Player* bot,

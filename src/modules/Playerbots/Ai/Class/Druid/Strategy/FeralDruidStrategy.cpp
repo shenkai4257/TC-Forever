@@ -85,10 +85,6 @@ void FeralDruidStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
         "enemy out of melee", { NextAction("reach melee", 21.0f) }));
     triggers.push_back(new TriggerNode(
         "low health", { NextAction("survival instincts", 91.0f) }));
-    triggers.push_back(new TriggerNode("player has flag",
-                                       { NextAction("dash", 92.0f) }));
-    triggers.push_back(new TriggerNode("enemy flagcarrier near",
-                                       { NextAction("dash", 92.0f) }));
 }
 
 void FeralChargeDruidStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)

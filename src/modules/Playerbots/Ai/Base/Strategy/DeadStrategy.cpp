@@ -14,8 +14,6 @@ void DeadStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     triggers.push_back(
         new TriggerNode("often", { NextAction("auto release", relevance) }));
     triggers.push_back(
-        new TriggerNode("bg active", { NextAction("auto release", relevance) }));
-    triggers.push_back(
         new TriggerNode("dead", { NextAction("find corpse", relevance) }));
     triggers.push_back(new TriggerNode(
         "corpse near", { NextAction("revive from corpse", relevance - 1.0f) }));

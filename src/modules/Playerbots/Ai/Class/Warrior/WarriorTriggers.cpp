@@ -35,9 +35,9 @@ bool BattleShoutTrigger::IsActive()
     int32 bsApValue = 0;
     for (uint8 eff = 0; eff < bsInfo->GetEffects().size(); ++eff)
     {
-        if (bsInfo->GetEffectOrDefault(SpellEffIndex(eff)).ApplyAuraName == SPELL_AURA_MOD_ATTACK_POWER)
+        if (GetEffectOrDefault(bsInfo, SpellEffIndex(eff)).ApplyAuraName == SPELL_AURA_MOD_ATTACK_POWER)
         {
-            bsApValue = bsInfo->GetEffectOrDefault(SpellEffIndex(eff)).BasePoints + 1;
+            bsApValue = GetEffectOrDefault(bsInfo, SpellEffIndex(eff)).BasePoints + 1;
             break;
         }
     }
@@ -73,9 +73,9 @@ bool BattleShoutTrigger::IsActive()
 
         for (uint8 eff = 0; eff < bomInfo->GetEffects().size(); ++eff)
         {
-            if (bomInfo->GetEffectOrDefault(SpellEffIndex(eff)).ApplyAuraName == SPELL_AURA_MOD_ATTACK_POWER)
+            if (GetEffectOrDefault(bomInfo, SpellEffIndex(eff)).ApplyAuraName == SPELL_AURA_MOD_ATTACK_POWER)
             {
-                int32 bomApValue = bomInfo->GetEffectOrDefault(SpellEffIndex(eff)).BasePoints + 1;
+                int32 bomApValue = GetEffectOrDefault(bomInfo, SpellEffIndex(eff)).BasePoints + 1;
                 if (bomApValue >= effectiveBsAp)
                     return false;
                 break;

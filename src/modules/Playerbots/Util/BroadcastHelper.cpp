@@ -332,48 +332,6 @@ bool BroadcastHelper::BroadcastQuestUpdateAddKill(PlayerbotAI* botAI, Player* bo
     return false;
 }
 
-bool BroadcastHelper::BroadcastQuestUpdateAddItem(PlayerbotAI* botAI, Player* bot, Quest const* quest, uint32 availableCount, uint32 requiredCount, ItemTemplate const* proto)
-{
-    if (!sPlayerbotAIConfig.EnableBroadcasts)
-        return false;
-    std::map<std::string, std::string> placeholders;
-    AreaTableEntry const* current_area = botAI->GetCurrentArea();
-    AreaTableEntry const* current_zone = botAI->GetCurrentZone();
-    placeholders["%area_name"] = current_area ? PlayerbotAI::GetLocalizedAreaName(current_area) : PlayerbotTextMgr::instance().GetBotText("string_unknown_area");
-    placeholders["%zone_name"] = current_zone ? PlayerbotAI::GetLocalizedAreaName(current_zone) : PlayerbotTextMgr::instance().GetBotText("string_unknown_area");
-    placeholders["%quest_link"] = botAI->GetChatHelper()->FormatQuest(quest);
-    std::string itemLinkFormatted = botAI->GetChatHelper()->FormatItem(proto);
-    placeholders["%item_link"] = itemLinkFormatted;
-    placeholders["%my_class"] = botAI->GetChatHelper()->FormatClass(bot->GetClass());
-    placeholders["%my_race"] = botAI->GetChatHelper()->FormatRace(bot->GetRace());
-    placeholders["%my_level"] = std::to_string(bot->GetLevel());
-    placeholders["%quest_obj_available"] = std::to_string(availableCount);
-    placeholders["%quest_obj_required"] = std::to_string(requiredCount);
-    placeholders["%quest_obj_missing"] = std::to_string(requiredCount - std::min(availableCount, requiredCount));
-    placeholders["%quest_obj_full_formatted"] = botAI->GetChatHelper()->FormatQuestObjective(itemLinkFormatted, availableCount, requiredCount);
-
-    if (availableCount < requiredCount
-        && urand(1, sPlayerbotAIConfig.BroadcastChanceMaxValue) <= sPlayerbotAIConfig.BroadcastChanceQuestUpdateObjectiveProgress)
-    {
-        return BroadcastToChannelWithGlobalChance(
-            botAI,
-            PlayerbotTextMgr::instance().GetBotText("broadcast_quest_update_add_item_objective_progress", placeholders),
-            { {TO_GUILD, 50}, {TO_WORLD, 50}, {TO_GENERAL, 100} }
-        );
-    }
-    else if (availableCount == requiredCount
-        && urand(1, sPlayerbotAIConfig.BroadcastChanceMaxValue) <= sPlayerbotAIConfig.BroadcastChanceQuestUpdateObjectiveCompleted)
-    {
-        return BroadcastToChannelWithGlobalChance(
-            botAI,
-            PlayerbotTextMgr::instance().GetBotText("broadcast_quest_update_add_item_objective_completed", placeholders),
-            { {TO_GUILD, 50}, {TO_WORLD, 50}, {TO_GENERAL, 100} }
-        );
-    }
-
-    return false;
-}
-
 bool BroadcastHelper::BroadcastQuestUpdateFailedTimer(PlayerbotAI* botAI, Player* bot, Quest const* quest)
 {
     if (!sPlayerbotAIConfig.EnableBroadcasts)

@@ -34,30 +34,27 @@ Creature* SeeSpellAction::CreateWps(Player* wpOwner, float x, float y, float z, 
 
 bool SeeSpellAction::Execute(Event event)
 {
-    // RTSC packet data
-    WorldPacket p(event.getPacket());
-    uint8 castCount;
-    uint32 spellId;
-    uint8 castFlags;
-
-    // check RTSC header size = castCount (uint8) + spellId (uint32) + castFlags (uint8)
-    uint32 const rtscHeaderSize = sizeof(uint8) + sizeof(uint32) + sizeof(uint8);
-    if (p.size() < rtscHeaderSize)
-    {
-        TC_LOG_WARN("playerbots", "SeeSpellAction: Corrupt RTSC packet size={}, expected>={}", p.size(), rtscHeaderSize);
-        return false;
-    }
-
     Player* master = botAI->GetMaster();
     if (!master)
         return false;
 
-    // read RTSC packet data
-    p.rpos(0); // set read position to start
-    p >> castCount >> spellId >> castFlags;
+    // The master's cast request, read the way the core's CMSG_CAST_SPELL handler reads it (the 3.3.5
+    // "cast count / spell id / flags" header does not exist in 12.x).
+    WorldPacket p(event.getPacket());
+    WorldPackets::Spells::SpellCastRequest castRequest;
+    try
+    {
+        p.rpos(0);
+        p >> castRequest;
+    }
+    catch (ByteBufferException const&)
+    {
+        // ignore a malformed cast request instead of crashing
+        TC_LOG_WARN("playerbots", "SeeSpellAction: failed to read the cast request");
+        return false;
+    }
 
-    // if (!botAI->HasStrategy("RTSC", botAI->GetState()))
-    //     return false;
+    uint32 const spellId = uint32(castRequest.SpellID);
 
     if (FISHING_SPELLS.find(spellId) != FISHING_SPELLS.end())
     {
@@ -72,28 +69,14 @@ bool SeeSpellAction::Execute(Event event)
     if (spellId != RTSC_MOVE_SPELL)
         return false;
 
-    // should not throw exception,just defensive measure to prevent any crashes when core function breaks.
-    WorldPosition spellPosition;
-    try
+    if (!castRequest.Target.DstLocation)
     {
-        // 12.x reads the cast request (with its destination) off the packet.
-        WorldPackets::Spells::SpellCastRequest castRequest;
-        p >> castRequest;
-        if (!castRequest.Target.DstLocation)
-        {
-            // do not dereference a null destination; ignore malformed RTSC packets instead of crashing
-            TC_LOG_WARN("playerbots", "SeeSpellAction: (malformed) RTSC payload does not contain full targets data");
-            return false;
-        }
-
-        spellPosition = WorldPosition(master->GetMapId(), castRequest.Target.DstLocation->Location);
-    }
-    catch (ByteBufferException const&)
-    {
-        // ignore malformed RTSC packets instead of crashing
-        TC_LOG_WARN("playerbots", "SeeSpellAction: Failed deserialization (malformed) RTSC payload");
+        // do not dereference a null destination; ignore cast requests without a destination
+        TC_LOG_WARN("playerbots", "SeeSpellAction: the cast request does not carry a destination");
         return false;
     }
+
+    WorldPosition spellPosition(master->GetMapId(), castRequest.Target.DstLocation->Location);
 
     SET_AI_VALUE(WorldPosition, "see spell location", spellPosition);
 

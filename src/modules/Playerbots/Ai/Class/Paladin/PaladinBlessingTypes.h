@@ -35,7 +35,7 @@ namespace ai::blessing
         ROLE_PHYSICAL_DPS    = 1,
         ROLE_HYBRID_DPS      = 2,
         ROLE_DRUID_TANK      = 3,
-        ROLE_WARRIOR_DK_TANK = 4,
+        ROLE_WARRIOR_TANK     = 4,
         ROLE_PALADIN_TANK    = 5,
         ROLE_PROFILE_COUNT   = 6
     };

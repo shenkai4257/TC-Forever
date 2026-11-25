@@ -86,6 +86,7 @@ enum BotState
 bool IsRealPlayer(Player* player);
 bool IsSelfBot(Player* player);
 bool IsAlliance(uint8 race);
+bool IsBotRaceAllowed(uint8 race);
 
 class PlayerbotChatHandler : protected ChatHandler
 {
@@ -294,13 +295,6 @@ enum PRIEST_TABS
     PRIEST_TAB_DISCIPLINE,
     PRIEST_TAB_HOLY,
     PRIEST_TAB_SHADOW,
-};
-
-enum DEATH_KNIGHT_TABS
-{
-    DEATH_KNIGHT_TAB_BLOOD,
-    DEATH_KNIGHT_TAB_FROST,
-    DEATH_KNIGHT_TAB_UNHOLY,
 };
 
 enum DRUID_TABS
@@ -634,8 +628,8 @@ public:
     void RecordQuestDropped(uint32 questId, QuestDropReason reason);
     void RecordQuestAbandoned(uint32 questId, QuestAbandonReason reason);
     std::unordered_set<uint32> lowPriorityQuest;
-    time_t bgReleaseAttemptTime = 0;
     ForceRebuffState forceRebuff;
+    uint32 swimCheckTimer = 0;  // ms since the last terrain/liquid refresh (see UpdateAI)
 
     // Schedules a callback to run once after <delayMs> milliseconds.
     void AddTimedEvent(std::function<void()> callback, uint32 delayMs);

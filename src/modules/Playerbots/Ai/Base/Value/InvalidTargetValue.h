@@ -11,6 +11,10 @@
 #include "Value.h"
 
 class PlayerbotAI;
+class Unit;
+
+// A target the bot can neither fight right now: gone from the world, another map, dead or a ghost.
+bool IsUnavailableCombatTarget(Player const* player, Unit const* target);
 
 class InvalidTargetValue : public BoolCalculatedValue, public Qualified
 {

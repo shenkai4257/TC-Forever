@@ -632,17 +632,6 @@ private:
     time_t lastCheck;
 };
 
-class TimerBGTrigger : public Trigger
-{
-public:
-    TimerBGTrigger(PlayerbotAI* botAI) : Trigger(botAI, "timer bg"), lastCheck(0) {}
-
-    bool IsActive() override;
-
-private:
-    time_t lastCheck;
-};
-
 class TankAssistTrigger : public NoAttackersTrigger
 {
 public:
@@ -966,6 +955,31 @@ class ForceRebuffPendingTrigger : public Trigger
 {
 public:
     ForceRebuffPendingTrigger(PlayerbotAI* botAI) : Trigger(botAI, "force rebuff pending") {}
+
+    bool IsActive() override;
+};
+
+// Generic PvP and vehicle state (they used to live with the battleground triggers).
+class EnemyPlayerNear : public Trigger
+{
+public:
+    EnemyPlayerNear(PlayerbotAI* botAI) : Trigger(botAI, "enemy player near", 3) {}
+
+    bool IsActive() override;
+};
+
+class VehicleNearTrigger : public Trigger
+{
+public:
+    VehicleNearTrigger(PlayerbotAI* botAI) : Trigger(botAI, "vehicle near", 10) {}
+
+    bool IsActive() override;
+};
+
+class InVehicleTrigger : public Trigger
+{
+public:
+    InVehicleTrigger(PlayerbotAI* botAI) : Trigger(botAI, "in vehicle") {}
 
     bool IsActive() override;
 };

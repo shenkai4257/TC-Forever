@@ -5,7 +5,8 @@
  */
 
 #include "CheckMountStateAction.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "DB2Structure.h"
 #include "DB2Stores.h"
 #include "Event.h"
@@ -52,7 +53,7 @@ MountData CollectMountData(Player const* bot)
     {
         SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
         if (!spellInfo || spellInfo->GetEffects().empty() ||
-            spellInfo->GetEffectOrDefault(EFFECT_0).ApplyAuraName != SPELL_AURA_MOUNTED)
+            GetEffectOrDefault(spellInfo, EFFECT_0).ApplyAuraName != SPELL_AURA_MOUNTED)
             continue;
 
         if (playerSpell.state == PLAYERSPELL_REMOVED || !playerSpell.active || spellInfo->IsPassive())
@@ -194,20 +195,6 @@ bool CheckMountStateAction::isUseful()
         !bot->movespline->Finalized())
         return false;
 
-    // BG Logic
-    if (bot->InBattleground())
-    {
-        // AC skipped mounting while carrying a battleground flag by testing the
-        // per-map flag spell ids (WSG/EY). 12.x has no batleground-flag aura type,
-        // and on 1.6x a flag carrier cannot mount anyway (the core refuses it), so
-        // the explicit check is dropped instead of guessing spell ids.
-
-        // Only mount if BG starts in less than 30 sec
-        if (Battleground* bg = bot->GetBattleground())
-            if (bg->GetStatus() == STATUS_WAIT_JOIN && bg->GetStartDelayTime() > BG_START_DELAY_30S)
-                return false;
-    }
-
     return true;
 }
 
@@ -302,8 +289,7 @@ void CheckMountStateAction::LoadPreferredMounts()
 {
     mountCache.clear();
 
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_PREFERRED_MOUNTS);
-    PreparedQueryResult result = PlayerbotsDatabase.Query(stmt);
+    QueryResult result = WorldDatabase.Query("SELECT guid, spellid, type FROM playerbots_preferred_mounts");
     if (!result)
         return;
 

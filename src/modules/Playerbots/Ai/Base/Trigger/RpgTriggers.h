@@ -154,14 +154,6 @@ public:
     bool IsActive() override;
 };
 
-class RpgQueueBGTrigger : public RpgTrigger
-{
-public:
-    RpgQueueBGTrigger(PlayerbotAI* botAI, std::string const name = "rpg queue bg") : RpgTrigger(botAI, name) {}
-
-    bool IsActive() override;
-};
-
 class RpgBuyPetitionTrigger : public RpgTrigger
 {
 public:

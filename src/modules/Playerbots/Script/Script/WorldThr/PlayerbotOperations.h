@@ -7,7 +7,6 @@
 #ifndef PLAYERBOTS_PLAYERBOTOPERATIONS_H
 #define PLAYERBOTS_PLAYERBOTOPERATIONS_H
 
-#include "ArenaTeamMgr.h"
 #include "Group.h"
 #include "GroupMgr.h"
 #include "GuildMgr.h"
@@ -114,6 +113,43 @@ public:
 private:
     ObjectGuid m_botGuid;
     ObjectGuid m_targetGuid;
+};
+
+// Deferred bot logout. LogoutPlayerBot deletes the player object synchronously, so when the request
+// comes from the bot's own update tick (see BotTickEvent::IsTickingPlayer) it is handed to the world
+// thread and executed in the tick window, where map threads are idle - the same window a real
+// player's logout runs in.
+class BotLogoutOperation : public PlayerbotOperation
+{
+public:
+    explicit BotLogoutOperation(ObjectGuid botGuid) : m_botGuid(botGuid) { }
+
+    bool Execute() override
+    {
+        if (!ObjectAccessor::FindConnectedPlayer(m_botGuid))
+            return true;   // already gone
+
+        if (Player* bot = ObjectAccessor::FindConnectedPlayer(m_botGuid))
+            if (PlayerbotAI* botAI = sPlayerbotsMgr.GetPlayerbotAI(bot))
+                if (Player* master = botAI->GetMaster())
+                if (PlayerbotMgr* mgr = PlayerbotsMgr::instance().GetPlayerbotMgr(master))
+                {
+                    mgr->LogoutPlayerBot(m_botGuid);
+                    return true;
+                }
+
+        sRandomPlayerbotMgr.LogoutPlayerBot(m_botGuid);
+        return true;
+    }
+
+    ObjectGuid GetBotGuid() const override { return m_botGuid; }
+
+    uint32 GetPriority() const override { return 50; }  // a bot waiting to go offline
+
+    std::string GetName() const override { return "BotLogout"; }
+
+private:
+    ObjectGuid m_botGuid;
 };
 
 // Remove member from group
@@ -266,153 +302,6 @@ public:
 private:
     ObjectGuid m_botGuid;
     ObjectGuid m_newLeaderGuid;
-};
-
-// Form arena group
-class ArenaGroupFormationOperation : public PlayerbotOperation
-{
-public:
-    ArenaGroupFormationOperation(ObjectGuid leaderGuid, std::vector<ObjectGuid> memberGuids,
-                                 uint32 requiredSize, uint32 arenaTeamId, std::string arenaTeamName)
-        : m_leaderGuid(leaderGuid), m_memberGuids(memberGuids),
-          m_requiredSize(requiredSize), m_arenaTeamId(arenaTeamId), m_arenaTeamName(arenaTeamName)
-    {
-    }
-
-    bool Execute() override
-    {
-        Player* leader = ObjectAccessor::FindPlayer(m_leaderGuid);
-        if (!leader)
-        {
-            TC_LOG_ERROR("playerbots", "ArenaGroupFormationOperation: Leader not found");
-            return false;
-        }
-
-        // Step 1: Remove all members from their existing groups
-        for (ObjectGuid const& memberGuid : m_memberGuids)
-        {
-            Player* member = ObjectAccessor::FindPlayer(memberGuid);
-            if (!member)
-                continue;
-
-            Group* memberGroup = member->GetGroup();
-            if (memberGroup)
-            {
-                memberGroup->RemoveMember(memberGuid);
-                TC_LOG_DEBUG("playerbots", "ArenaGroupFormationOperation: Removed {} from their existing group",
-                         member->GetName());
-            }
-        }
-
-        // Step 2: Disband leader's existing group
-        Group* leaderGroup = leader->GetGroup();
-        if (leaderGroup)
-        {
-            leaderGroup->Disband(true);
-            TC_LOG_DEBUG("playerbots", "ArenaGroupFormationOperation: Disbanded leader's existing group");
-        }
-
-        // Step 3: Create new group with leader
-        Group* newGroup = new Group();
-        if (!newGroup->Create(leader))
-        {
-            delete newGroup;
-            TC_LOG_ERROR("playerbots", "ArenaGroupFormationOperation: Failed to create arena group for leader {}",
-                     leader->GetName());
-            return false;
-        }
-
-        sGroupMgr->AddGroup(newGroup);
-        TC_LOG_DEBUG("playerbots", "ArenaGroupFormationOperation: Created new arena group with leader {}",
-                 leader->GetName());
-
-        // Step 4: Add members to the new group
-        uint32 addedMembers = 0;
-        for (ObjectGuid const& memberGuid : m_memberGuids)
-        {
-            Player* member = ObjectAccessor::FindPlayer(memberGuid);
-            if (!member)
-            {
-                TC_LOG_DEBUG("playerbots", "ArenaGroupFormationOperation: Member {} not found, skipping",
-                         memberGuid.ToString());
-                continue;
-            }
-
-            if (member->GetLevel() < 70)
-            {
-                TC_LOG_DEBUG("playerbots", "ArenaGroupFormationOperation: Member {} is below level 70, skipping",
-                         member->GetName());
-                continue;
-            }
-
-            if (newGroup->AddMember(member))
-            {
-                addedMembers++;
-                TC_LOG_DEBUG("playerbots", "ArenaGroupFormationOperation: Added {} to arena group",
-                         member->GetName());
-            }
-            else
-                TC_LOG_ERROR("playerbots", "ArenaGroupFormationOperation: Failed to add {} to arena group",
-                         member->GetName());
-        }
-
-        if (addedMembers == 0)
-        {
-            TC_LOG_ERROR("playerbots", "ArenaGroupFormationOperation: No members were added to the arena group");
-            newGroup->Disband();
-            return false;
-        }
-
-        // Step 5: Teleport members to leader and reset AI
-        for (ObjectGuid const& memberGuid : m_memberGuids)
-        {
-            Player* member = ObjectAccessor::FindPlayer(memberGuid);
-            if (!member || !newGroup->IsMember(memberGuid))
-                continue;
-
-            PlayerbotAI* memberBotAI = PlayerbotsMgr::instance().GetPlayerbotAI(member);
-            if (memberBotAI)
-                memberBotAI->Reset();
-
-            member->RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::LeaveWorld | SpellAuraInterruptFlags::EnterWorld);
-            member->TeleportTo(leader->GetMapId(), leader->GetPositionX(), leader->GetPositionY(),
-                              leader->GetPositionZ(), 0);
-
-            TC_LOG_DEBUG("playerbots", "ArenaGroupFormationOperation: Teleported {} to leader", member->GetName());
-        }
-
-        // Check if we have enough members
-        if (newGroup->GetMembersCount() < m_requiredSize)
-        {
-            TC_LOG_INFO("playerbots", "Team #{} <{}> Group is not ready for match (not enough members: {}/{})",
-                    m_arenaTeamId, m_arenaTeamName, newGroup->GetMembersCount(), m_requiredSize);
-            newGroup->Disband();
-            return false;
-        }
-
-        TC_LOG_INFO("playerbots", "Team #{} <{}> Group is ready for match with {} members",
-                m_arenaTeamId, m_arenaTeamName, newGroup->GetMembersCount());
-        return true;
-    }
-
-    ObjectGuid GetBotGuid() const override { return m_leaderGuid; }
-
-    uint32 GetPriority() const override { return 60; }  // Very high priority (arena/BG operations)
-
-    std::string GetName() const override { return "ArenaGroupFormation"; }
-
-    bool IsValid() const override
-    {
-        Player* leader = ObjectAccessor::FindPlayer(m_leaderGuid);
-        return leader != nullptr;
-    }
-
-private:
-    ObjectGuid m_leaderGuid;
-    std::vector<ObjectGuid> m_memberGuids;
-    uint32 m_requiredSize;
-    uint32 m_arenaTeamId;
-    std::string m_arenaTeamName;
 };
 
 // Bot logout group cleanup operation

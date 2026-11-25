@@ -7,8 +7,14 @@
 #include "InvalidTargetValue.h"
 #include "AttackersValue.h"
 #include "Playerbots.h"
-#include "PvpValues.h"
 #include "Unit.h"
+
+bool IsUnavailableCombatTarget(Player const* player, Unit const* target)
+{
+    return !player || !target || !target->IsInWorld() || target->GetMap() != player->GetMap() || !target->IsAlive() ||
+           target->HasAuraType(SPELL_AURA_SPIRIT_OF_REDEMPTION) ||
+           (target->IsPlayer() && target->ToPlayer()->HasPlayerFlag(PLAYER_FLAGS_GHOST));
+}
 
 bool InvalidTargetValue::Calculate()
 {

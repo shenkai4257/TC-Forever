@@ -94,11 +94,10 @@ public:
     void InitReagents();
     void InitConsumables();
     void InitPotions();
-    void InitGlyphs(bool increment = false);
     void InitFood();
     void InitMounts();
     void InitBags(bool destroyOld = true);
-    void ApplyEnchantAndGemsNew(bool destroyOld = true);
+    void ApplyEnchants();
     void InitInstanceQuests();
     void UnbindInstance();
     void InitKeyring();
@@ -129,27 +128,11 @@ private:
         LearnElemental = 10659,
         LearnTribal = 10661,
 
-        Spellfire = 26797,
-        Mooncloth = 26798,
-        Shadoweave = 26801,
-
         Goblin = 20222,
         Gnomish = 20219,
 
         LearnGoblin = 20221,
-        LearnGnomish = 20220,
-
-        LearnSpellfire = 26796,
-        LearnMooncloth = 26799,
-        LearnShadoweave = 26800,
-
-        Transmute = 28672,
-        Elixir = 28677,
-        Potion = 28675,
-
-        LearnTransmute = 28674,
-        LearnElixir = 28678,
-        LearnPotion = 28676
+        LearnGnomish = 20220
     };
 
     enum class ProfessionRollType : uint32
@@ -189,10 +172,8 @@ private:
                                              ProfessionSpecializationSpell learnSpell);
     void InitTradeSkills();
     void InitTradeSpecializations();
-    bool InitAlchemySpecialization();
     bool InitEngineeringSpecialization();
     bool InitLeatherworkingSpecialization();
-    bool InitTailoringSpecialization();
     bool InitBlacksmithingSpecialization();
     void UpdateTradeSkills();
     void SetRandomSkill(uint16 id);

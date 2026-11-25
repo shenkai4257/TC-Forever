@@ -5,7 +5,6 @@
  */
 
 #include "AiFactory.h"
-#include "BattlegroundMgr.h"
 #include "DruidAiObjectContext.h"
 #include "Engine.h"
 #include "Group.h"
@@ -57,8 +56,6 @@ AiObjectContext* AiFactory::createAiObjectContext(Player* player, PlayerbotAI* b
             return new HunterAiObjectContext(botAI);
         case CLASS_ROGUE:
             return new RogueAiObjectContext(botAI);
-        case CLASS_DEATH_KNIGHT:
-            return nullptr; // 1.60 has no death knight
     }
 
     return new AiObjectContext(botAI);
@@ -224,14 +221,6 @@ std::string AiFactory::GetPlayerSpecName(Player* player)
             else if (tab == HUNTER_TAB_SURVIVAL)
                 specName = "surv";
             break;
-        case CLASS_DEATH_KNIGHT:
-            if (tab == DEATH_KNIGHT_TAB_BLOOD)
-                specName = "blooddps";
-            else if (tab == DEATH_KNIGHT_TAB_FROST)
-                specName = "frostdps";
-            else if (tab == DEATH_KNIGHT_TAB_UNHOLY)
-                specName = "unholydps";
-            break;
         case CLASS_MAGE:
             if (tab == MAGE_TAB_ARCANE)
                 specName = "arcane";
@@ -365,15 +354,6 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
                 engine->addStrategiesNoInit("destro", "curse of elements", nullptr);
             engine->addStrategiesNoInit("cc", "dps assist", "aoe", nullptr);
             break;
-
-        case CLASS_DEATH_KNIGHT:
-            if (tab == DEATH_KNIGHT_TAB_BLOOD)
-                engine->addStrategiesNoInit("blood", "tank assist", "pull", "pull back", nullptr);
-            else if (tab == DEATH_KNIGHT_TAB_FROST)
-                engine->addStrategiesNoInit("frost", "frost aoe", "dps assist", nullptr);
-            else // if (tab == DEATH_KNIGHT_TAB_UNHOLY)
-                engine->addStrategiesNoInit("unholy", "unholy aoe", "dps assist", nullptr);
-            break;
     }
 
     if (PlayerbotAI::IsTank(player, true))
@@ -435,29 +415,6 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
     else
         engine->ChangeStrategy(sPlayerbotAIConfig.CombatStrategies);
 
-    // Battleground switch
-    if (player->InBattleground() && player->GetBattleground())
-    {
-        BattlegroundTypeId bgType = player->GetBattlegroundTypeId();
-        if (bgType == BATTLEGROUND_RB)
-            bgType = player->GetBattleground()->GetTypeID();
-
-        if (bgType == BATTLEGROUND_WS)
-            engine->addStrategy("warsong", false);
-
-        if (bgType == BATTLEGROUND_AB)
-            engine->addStrategy("arathi", false);
-
-        if (bgType == BATTLEGROUND_AV)
-            engine->addStrategy("alterac", false);
-
-        // 1.60 battlegrounds are AV, WSG and AB only; there is no arena.
-        engine->addStrategiesNoInit("boost", "racials", "chat", "default", "aoe", "potions", "cast time", "dps assist", nullptr);
-
-        engine->removeStrategy("custom::say", false);
-        engine->removeStrategy("threat", false);
-        engine->addStrategy("boost", false);
-    }
 }
 
 Engine* AiFactory::createCombatEngine(Player* player, PlayerbotAI* const facade, AiObjectContext* aiObjectContext)
@@ -528,12 +485,6 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
 
             nonCombatEngine->addStrategiesNoInit("dps assist", "ss self", nullptr);
             break;
-        case CLASS_DEATH_KNIGHT:
-            if (tab == DEATH_KNIGHT_TAB_BLOOD)
-                nonCombatEngine->addStrategiesNoInit("tank assist", "pull", nullptr);
-            else
-                nonCombatEngine->addStrategy("dps assist", false);
-            break;
         default:
             nonCombatEngine->addStrategy("dps assist", false);
             break;
@@ -577,9 +528,6 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
             }
             else
                 nonCombatEngine->addStrategy("move random", false);
-
-            if (sPlayerbotAIConfig.RandomBotJoinBG)
-                nonCombatEngine->addStrategy("bg", false);
 
             // if (!master || GET_PLAYERBOT_AI(master))
             //     nonCombatEngine->addStrategy("maintenance");
@@ -627,34 +575,6 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
     else
         nonCombatEngine->ChangeStrategy(sPlayerbotAIConfig.NonCombatStrategies);
 
-    // Battleground switch
-    if (player->InBattleground() && player->GetBattleground())
-    {
-        nonCombatEngine->addStrategiesNoInit("nc", "chat", "default", "force rebuff", "buff", "food", "mount", "pvp",
-                                       "dps assist", "attack tagged", "emote", nullptr);
-        nonCombatEngine->removeStrategy("custom::say", false);
-        nonCombatEngine->removeStrategy("travel", false);
-        nonCombatEngine->removeStrategy("rpg", false);
-        nonCombatEngine->removeStrategy("grind", false);
-
-        BattlegroundTypeId bgType = player->GetBattlegroundTypeId();
-        if (bgType == BATTLEGROUND_RB)
-            bgType = player->GetBattleground()->GetTypeID();
-
-        // 1.60 battlegrounds are AV, WSG and AB only.
-        if (bgType == BATTLEGROUND_AV || bgType == BATTLEGROUND_WS || bgType == BATTLEGROUND_AB)
-            nonCombatEngine->addStrategy("battleground", false);
-
-        if (bgType == BATTLEGROUND_WS)
-            nonCombatEngine->addStrategy("warsong", false);
-
-        if (bgType == BATTLEGROUND_AV)
-            nonCombatEngine->addStrategy("alterac", false);
-
-        if (bgType == BATTLEGROUND_AB)
-            nonCombatEngine->addStrategy("arathi", false);
-
-    }
 }
 
 Engine* AiFactory::createNonCombatEngine(Player* player, PlayerbotAI* const facade, AiObjectContext* aiObjectContext)

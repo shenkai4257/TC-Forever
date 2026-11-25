@@ -86,7 +86,7 @@ bool InventoryChangeFailureAction::Execute(Event event)
 
     WorldPacket p(event.getPacket());
     p.rpos(0);
-    uint8 err;
+    int32 err;     // 12.x sends the result as an int32 (3.3.5 used a byte)
     p >> err;
     if (err == EQUIP_ERR_OK)
         return false;

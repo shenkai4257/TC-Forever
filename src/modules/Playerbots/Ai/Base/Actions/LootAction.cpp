@@ -15,8 +15,10 @@
 #include "GuildMgr.h"
 #include "GuildTaskMgr.h"
 #include "ItemUsageValue.h"
+#include "Log.h"
 #include "LootObjectStack.h"
 #include "LootStrategyValue.h"
+#include "MapUtils.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotSpellRepository.h"
 #include "Playerbots.h"
@@ -110,6 +112,16 @@ bool OpenLootAction::Execute(Event /*event*/)
     bool const result = DoLoot(lootObject);
     if (result)
         availableLoot->BeginLoot(lootObject.guid);
+    else if (!lootObject.IsEmpty() && !lootObject.IsLootPossible(bot))
+    {
+        // This corpse can never be looted by this bot any more: a roll went to someone else and the
+        // item stays on the corpse for the winner (LootRoll::Finish keeps it unlooted), so the corpse
+        // still looks lootable to everyone. Deferring it is what made the bot bow at such a corpse
+        // forever - drop it and move on.
+        availableLoot->Remove(lootObject.guid);
+        if (AI_VALUE(LootObject, "loot target").guid == lootObject.guid)
+            context->GetValue<LootObject>("loot target")->Set(LootObject());
+    }
     else if (!lootObject.IsEmpty() && !wasMoving && !wasMounted)
     {
         availableLoot->DeferLoot(lootObject.guid);
@@ -149,6 +161,11 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
         WorldPackets::Loot::LootUnit lootUnit(std::move(payload));
         lootUnit.Unit = lootObject.guid;
         bot->GetSession()->HandleLootOpcode(lootUnit);
+        // Area loot opens one window per looted corpse in range, so the count is the evidence when a
+        // bot keeps the looting pose: the pose is UNIT_FLAG_LOOTING, cleared only when the last window closes.
+        TC_LOG_DEBUG("playerbots.loot", "{} opened loot: owner {}, {} window(s) open, looting flag {}",
+            bot->GetName(), lootObject.guid.ToString(), bot->GetAELootView().size(),
+            bot->HasUnitFlag(UNIT_FLAG_LOOTING) ? "set" : "clear");
         botAI->SetNextCheckDelay(sPlayerbotAIConfig.LootDelay);
         return true;
     }
@@ -260,11 +277,11 @@ bool OpenLootAction::CanOpenLock(LootObject& lootObject, SpellInfo const* spellI
 
     for (uint8 effIndex = 0; effIndex <= EFFECT_2; effIndex++)
     {
-        if (spellInfo->GetEffectOrDefault(SpellEffIndex(effIndex)).Effect != SPELL_EFFECT_OPEN_LOCK &&
-            spellInfo->GetEffectOrDefault(SpellEffIndex(effIndex)).Effect != SPELL_EFFECT_SKINNING)
+        if (GetEffectOrDefault(spellInfo, SpellEffIndex(effIndex)).Effect != SPELL_EFFECT_OPEN_LOCK &&
+            GetEffectOrDefault(spellInfo, SpellEffIndex(effIndex)).Effect != SPELL_EFFECT_SKINNING)
             continue;
 
-        if (uint32(spellInfo->GetEffectOrDefault(SpellEffIndex(effIndex)).MiscValue) == lootObject.GetLockType())
+        if (uint32(GetEffectOrDefault(spellInfo, SpellEffIndex(effIndex)).MiscValue) == lootObject.GetLockType())
             return CanOpenLock(lootObject.skillId, lootObject.reqSkillValue);
     }
 
@@ -379,8 +396,9 @@ proto->GetName(LocaleConstant(LOCALE_enUS)).c_str(), 1, bidPrice, buyoutPrice);
 bool StoreLootAction::Execute(Event event)
 {
     WorldPacket p(event.getPacket());
-    ObjectGuid ownerGuid;
-    ObjectGuid guid;  // LootObj from the 12.x response (corpse or gameobject)
+    ObjectGuid ownerGuid;    // the world object being looted (corpse / gameobject)
+    ObjectGuid lootObjGuid;  // the loot window's own guid (12.x); CMSG_LOOT_ITEM must use this one
+    ObjectGuid guid;         // set to ownerGuid after parsing: release and the loot state machine match by it
     uint8 failureReason = 0;
     uint8 lootType = 0;
     uint8 lootMethod = 0;
@@ -392,7 +410,7 @@ bool StoreLootAction::Execute(Event event)
 
     p.rpos(0);
     p >> ownerGuid;
-    p >> guid;
+    p >> lootObjGuid;
     p >> failureReason;
     p >> lootType;
     p >> lootMethod;
@@ -409,7 +427,7 @@ bool StoreLootAction::Execute(Event event)
     {
         uint32 itemId = 0;
         uint32 count = 0;
-        uint8 slotType = 0;
+        uint8 uiType = 0;    // LOOT_SLOT_TYPE_* - decides whether this viewer may take the item
         uint8 listId = 0;
     };
 
@@ -427,8 +445,13 @@ bool StoreLootAction::Execute(Event event)
 
         ParsedLootItem item;
         p >> item.count;
-        p >> item.slotType;
+        // The 8-bit field here is LootItemData::LootItemType, which BuildLootResponse never fills
+        // (always 0). Read it to stay aligned and ignore it; the state the client acts on is the
+        // 3-bit UiType read above.
+        uint8 unusedLootItemType = 0;
+        p >> unusedLootItemType;
         p >> item.listId;
+        item.uiType = uiType;
         WorldPackets::Item::ItemInstance lootInstance;
         p >> lootInstance;
         item.itemId = uint32(lootInstance.ItemID);
@@ -455,6 +478,13 @@ bool StoreLootAction::Execute(Event event)
     p >> WorldPackets::Bits<1>(aeLooting);
     p >> WorldPackets::Bits<1>(suppressError);
 
+    // 12.x sends two guids: Owner is the world object being looted (corpse or gameobject), LootObj
+    // is the loot window's own guid. Everything on this side matches by the world object -
+    // bot->GetLootGUID(), HandleLootReleaseOpcode (GetLootByWorldObjectGUID) and the loot target -
+    // so comparing against LootObj never matched a corpse: every opened window was dropped as
+    // "not the one we asked for" and the bot never looted anything. Work with Owner from here on.
+    guid = ownerGuid;
+
     LootObjectStack* availableLoot = AI_VALUE(LootObjectStack*, "available loot");
     ObjectGuid currentLoot = bot->GetLootGUID();
     if (!acquired)
@@ -475,18 +505,28 @@ bool StoreLootAction::Execute(Event event)
         return false;
     }
 
-    if (!currentLoot.IsEmpty() && currentLoot != guid)
-    {
-        availableLoot->CancelLoot(guid);
+    // A response is only worth acting on while its window is still open. 12.x keys the loot view by the
+    // loot window guid (Player::SendLoot: m_AELootView[loot.GetGUID()]), so an entry for LootObj proves
+    // the core opened this window for the bot and has not released it yet; anything else is a stale
+    // queued response and must not touch any state.
+    // The window the bot asked for is not the only one it gets: with area loot on
+    // (Loot.EnableAELoot, the default) one CMSG_LOOT_UNIT also opens a window for every other corpse in
+    // range the bot may loot. Comparing Owner against the bot's loot guid used to drop those windows
+    // unopened - and an unreleased window keeps UNIT_FLAG_LOOTING set (the bot stays bent over) and
+    // leaves a dangling Loot* behind once the corpse decays. Every window is taken from and closed.
+    Loot* loot = Trinity::Containers::MapGetValuePtr(bot->GetAELootView(), lootObjGuid);
+    if (!loot)
         return false;
-    }
 
     availableLoot->LootOpened(guid);
 
     if (!currentLoot)
         bot->SetLootGUID(guid);
 
-    if (gold > 0)
+    // CMSG_LOOT_MONEY collects the money of every window the bot has open (HandleLootMoneyOpcode walks
+    // the whole loot view), so it runs once per loot round: the windows handled after it still carry the
+    // gold they were opened with, but their loot has none left.
+    if (gold > 0 && loot->gold > 0)
     {
         WorldPacket payload(CMSG_LOOT_MONEY, 0);
         WorldPackets::Loot::LootMoney lootMoney(std::move(payload));
@@ -498,10 +538,12 @@ bool StoreLootAction::Execute(Event event)
     {
         uint32 itemid = parsed.itemId;
         uint32 itemcount = parsed.count;
-        uint8 lootslot_type = parsed.slotType;
+        uint8 uiType = parsed.uiType;
         uint8 itemindex = parsed.listId;
 
-        if (lootslot_type != LOOT_SLOT_TYPE_ALLOW_LOOT && lootslot_type != LOOT_SLOT_TYPE_OWNER)
+        // Only what this viewer may take right now: ALLOW_LOOT and OWNER. ROLL_ONGOING / LOCKED /
+        // MASTER belong to a roll or to the master looter and would only bounce off the server.
+        if (uiType != LOOT_SLOT_TYPE_ALLOW_LOOT && uiType != LOOT_SLOT_TYPE_OWNER)
             continue;
 
         if (lootType != LOOT_SKINNING && !IsLootAllowed(itemid, botAI))
@@ -562,7 +604,10 @@ bool StoreLootAction::Execute(Event event)
         WorldPacket payload(CMSG_LOOT_ITEM);
         WorldPackets::Loot::LootItem lootItem(std::move(payload));
         lootItem.Loot.resize(1);
-        lootItem.Loot[0].Object = guid;
+        // HandleAutostoreLootItemOpcode looks the loot up in Player::GetAELootView(), which is keyed
+        // by the loot window guid (loot.GetGUID()), not by the corpse: this one request field needs
+        // LootObj while every release/state check above needs Owner (2026-11-25).
+        lootItem.Loot[0].Object = lootObjGuid;
         lootItem.Loot[0].LootListID = uint8(itemindex);
         bot->GetSession()->HandleAutostoreLootItemOpcode(lootItem);
         botAI->SetNextCheckDelay(sPlayerbotAIConfig.LootDelay);
@@ -593,6 +638,9 @@ bool StoreLootAction::Execute(Event event)
     WorldPackets::Loot::LootRelease release(std::move(payload));
     release.Unit = guid;
     bot->GetSession()->HandleLootReleaseOpcode(release);
+    TC_LOG_DEBUG("playerbots.loot", "{} closed loot: window {} (owner {}), {} window(s) left, looting flag {}",
+        bot->GetName(), lootObjGuid.ToString(), guid.ToString(), bot->GetAELootView().size(),
+        bot->HasUnitFlag(UNIT_FLAG_LOOTING) ? "set" : "clear");
     return true;
 }
 

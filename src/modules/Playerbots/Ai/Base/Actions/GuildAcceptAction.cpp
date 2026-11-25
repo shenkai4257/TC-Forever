@@ -7,17 +7,36 @@
 #include "GuildAcceptAction.h"
 #include "Event.h"
 #include "GuildPackets.h"
+#include "PacketOperators.h"
 #include "PlayerbotSecurity.h"
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 
 bool GuildAcceptAction::Execute(Event event)
 {
+    // 12.x layout (WorldPackets::Guild::GuildInvite::Write): 6 bit inviter name length, 9 bit inviter
+    // surname, 7 bit guild name, 7 bit old guild name, a fixed-width part, then the four name strings.
     WorldPacket p(event.getPacket());
     p.rpos(0);
-    Player* inviter = nullptr;
+    uint32 nameLengths = 0;
+    p >> WorldPackets::Bits<29>(nameLengths);
+    p.ResetBitPos();
+    uint8 const inviterNameLength = uint8(nameLengths >> 23);
+
+    ObjectGuid guildGuid;
+    ObjectGuid oldGuildGuid;
+    p.read_skip<uint32_t>();         // InviterVirtualRealmAddress
+    p.read_skip<uint32_t>();         // GuildVirtualRealmAddress
+    p >> guildGuid;
+    p.read_skip<uint32_t>();         // OldGuildVirtualRealmAddress
+    p >> oldGuildGuid;
+    p.read_skip(7 * sizeof(uint32_t));  // emblem (5), AchievementPoints
+
     std::string Invitedname;
-    p >> Invitedname;
+    if (inviterNameLength)
+        Invitedname = p.ReadString(inviterNameLength);
+
+    Player* inviter = nullptr;
 
     if (normalizePlayerName(Invitedname))
         inviter = ObjectAccessor::FindPlayerByName(Invitedname.c_str());

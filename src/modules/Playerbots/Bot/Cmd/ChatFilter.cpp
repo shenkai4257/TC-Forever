@@ -125,7 +125,6 @@ public:
             case CLASS_WARRIOR:
             case CLASS_PALADIN:
             case CLASS_ROGUE:
-            case CLASS_DEATH_KNIGHT:
                 if (ranged)
                     return "";
                 break;
@@ -217,7 +216,6 @@ class ClassChatFilter : public ChatFilter
 public:
     ClassChatFilter(PlayerbotAI* botAI) : ChatFilter(botAI)
     {
-        classNames["@dk"] = CLASS_DEATH_KNIGHT;
         classNames["@druid"] = CLASS_DRUID;
         classNames["@hunter"] = CLASS_HUNTER;
         classNames["@mage"] = CLASS_MAGE;
@@ -341,9 +339,6 @@ public:
         specTabNames[{CLASS_ROGUE, 0}] = "mut";
         specTabNames[{CLASS_ROGUE, 1}] = "comb";
         specTabNames[{CLASS_ROGUE, 2}] = "sub";
-        // See below for blood death knight
-        specTabNames[{CLASS_DEATH_KNIGHT, 1}] = "fdk";
-        specTabNames[{CLASS_DEATH_KNIGHT, 2}] = "udk";
     }
 
     std::string const Filter(std::string& message) override
@@ -395,11 +390,6 @@ private:
         if (cls == CLASS_DRUID && specTab == 1)
         {
             botSpecClass = PlayerbotAI::IsTank(bot) ? "bear" : "cat";
-        }
-        // For death knights, specTab==0 is always blood; distinguish tank/dps at runtime by role
-        else if (cls == CLASS_DEATH_KNIGHT && specTab == 0)
-        {
-            botSpecClass = PlayerbotAI::IsTank(bot) ? "bdkt" : "bdkd";
         }
         else
         {

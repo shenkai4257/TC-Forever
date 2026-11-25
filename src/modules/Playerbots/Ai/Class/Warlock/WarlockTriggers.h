@@ -268,13 +268,6 @@ public:
     bool IsActive() override;
 };
 
-class LifeTapGlyphBuffTrigger : public BuffTrigger
-{
-public:
-    LifeTapGlyphBuffTrigger(PlayerbotAI* botAI) : BuffTrigger(botAI, "life tap") {}
-    bool IsActive() override;
-};
-
 class MetamorphosisTrigger : public BoostTrigger
 {
 public:

@@ -18,7 +18,6 @@
 #include "NewRpgStrategy.h"
 #include "NewRpgTriggers.h"
 #include "PullTriggers.h"
-#include "PvpTriggers.h"
 #include "RangeTriggers.h"
 #include "RpgTriggers.h"
 #include "RtiTriggers.h"
@@ -179,14 +178,6 @@ public:
         creators["give food"] = &TriggerContext::give_food;
         creators["give water"] = &TriggerContext::give_water;
 
-        creators["player has no flag"] = &TriggerContext::player_has_no_flag;
-        creators["player has flag"] = &TriggerContext::player_has_flag;
-        creators["team has flag"] = &TriggerContext::team_has_flag;
-        creators["enemy team has flag"] = &TriggerContext::enemy_team_has_flag;
-        creators["enemy flagcarrier near"] = &TriggerContext::enemy_flagcarrier_near;
-        creators["wsg flag state changed"] = &TriggerContext::wsg_flag_state_changed;
-        creators["wsg escort separated"] = &TriggerContext::wsg_escort_separated;
-
         creators["mounted"] = &TriggerContext::mounted;
 
         // move to/enter dark portal if near
@@ -323,14 +314,12 @@ private:
     static Trigger* NoAttackers(PlayerbotAI* botAI) { return new NoAttackersTrigger(botAI); }
     static Trigger* TankAssist(PlayerbotAI* botAI) { return new TankAssistTrigger(botAI); }
     static Trigger* Timer(PlayerbotAI* botAI) { return new TimerTrigger(botAI); }
-    static Trigger* TimerBG(PlayerbotAI* botAI) { return new TimerBGTrigger(botAI); }
     static Trigger* force_rebuff_pending(PlayerbotAI* botAI) { return new ForceRebuffPendingTrigger(botAI); }
     static Trigger* NoTarget(PlayerbotAI* botAI) { return new NoTargetTrigger(botAI); }
     static Trigger* TargetInSight(PlayerbotAI* botAI) { return new TargetInSightTrigger(botAI); }
     static Trigger* not_dps_target_active(PlayerbotAI* botAI) { return new NotDpsTargetActiveTrigger(botAI); }
     static Trigger* not_dps_aoe_target_active(PlayerbotAI* botAI) { return new NotDpsAoeTargetActiveTrigger(botAI); }
     static Trigger* enemy_player_near(PlayerbotAI* botAI) { return new EnemyPlayerNear(botAI); }
-    static Trigger* wsg_escort_separated(PlayerbotAI* botAI) { return new WsgEscortSeparated(botAI); }
     static Trigger* Random(PlayerbotAI* botAI) { return new RandomTrigger(botAI, "random", 20); }
     static Trigger* seldom(PlayerbotAI* botAI) { return new RandomTrigger(botAI, "seldom", 300); }
     static Trigger* often(PlayerbotAI* botAI) { return new RandomTrigger(botAI, "often", 5); }
@@ -392,14 +381,6 @@ private:
     static Trigger* random_bot_update_trigger(PlayerbotAI* botAI) { return new RandomBotUpdateTrigger(botAI); }
     static Trigger* no_non_bot_players_around(PlayerbotAI* botAI) { return new NoNonBotPlayersAroundTrigger(botAI); }
     static Trigger* new_player_nearby(PlayerbotAI* botAI) { return new NewPlayerNearbyTrigger(botAI); }
-    static Trigger* player_has_no_flag(PlayerbotAI* botAI) { return new PlayerHasNoFlag(botAI); }
-    static Trigger* player_has_flag(PlayerbotAI* botAI) { return new PlayerHasFlag(botAI); }
-    static Trigger* team_has_flag(PlayerbotAI* botAI) { return new TeamHasFlag(botAI); }
-    static Trigger* enemy_team_has_flag(PlayerbotAI* botAI) { return new EnemyTeamHasFlag(botAI); }
-    static Trigger* enemy_flagcarrier_near(PlayerbotAI* botAI) { return new EnemyFlagCarrierNear(botAI); }
-    static Trigger* wsg_flag_state_changed(PlayerbotAI* botAI) { return new WsgFlagStateChanged(botAI); }
-    static Trigger* player_is_in_BATTLEGROUND(PlayerbotAI* botAI) { return new PlayerIsInBattleground(botAI); }
-    static Trigger* player_is_in_BATTLEGROUND_no_flag(PlayerbotAI* botAI) { return new PlayerIsInBattlegroundWithoutFlag(botAI); }
     static Trigger* mounted(PlayerbotAI* botAI) { return new IsMountedTrigger(botAI); }
     static Trigger* at_dark_portal_outland(PlayerbotAI* botAI) { return new AtDarkPortalOutlandTrigger(botAI); }
     static Trigger* at_dark_portal_azeroth(PlayerbotAI* botAI) { return new AtDarkPortalAzerothTrigger(botAI); }

@@ -34,7 +34,6 @@ protected:
     bool UseItem(Item* item, ObjectGuid go, Item* itemTarget, Unit* unitTarget = nullptr);
     bool UseGameObject(ObjectGuid guid);
     void TellConsumableUse(Item* item, std::string const action, float percent);
-    bool SocketItem(Item* item, Item* gem, bool replace = false);
 
 private:
     bool selfOnly;

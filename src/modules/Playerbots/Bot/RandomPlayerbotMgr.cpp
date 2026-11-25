@@ -7,10 +7,9 @@
 #include "RandomPlayerbotMgr.h"
 #include "CharacterCache.h"
 #include "FieldHelper.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "AiFactory.h"
-#include "Battleground.h"
-#include "BattlegroundMgr.h"
 #include "Cell.h"
 #include "CellImpl.h"
 #include "ChannelMgr.h"
@@ -24,7 +23,6 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "JsonUtils.h"
-#include "LFGMgr.h"
 #include "MapManager.h"
 #include "NewRpgInfo.h"
 #include "NewRpgStrategy.h"
@@ -68,22 +66,6 @@ void PrintStatsThread() { sRandomPlayerbotMgr.PrintStats(); }
 void activatePrintStatsThread()
 {
     boost::thread t(PrintStatsThread);
-    t.detach();
-}
-
-void CheckBgQueueThread() { sRandomPlayerbotMgr.CheckBgQueue(); }
-
-void activateCheckBgQueueThread()
-{
-    boost::thread t(CheckBgQueueThread);
-    t.detach();
-}
-
-void CheckLfgQueueThread() { sRandomPlayerbotMgr.CheckLfgQueue(); }
-
-void activateCheckLfgQueueThread()
-{
-    boost::thread t(CheckLfgQueueThread);
     t.detach();
 }
 
@@ -436,18 +418,6 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 /*elapsed*/, bool /*minimal*/)
             sRandomPlayerbotMgr.CheckPlayers();
     }
 
-    if (sPlayerbotAIConfig.RandomBotJoinBG /* && !players.empty()*/)
-    {
-        if (time(nullptr) > (BgCheckTimer + 35))
-            sRandomPlayerbotMgr.CheckBgQueue();
-    }
-
-    if (sPlayerbotAIConfig.RandomBotJoinLfg /* && !players.empty()*/)
-    {
-        if (time(nullptr) > (LfgCheckTimer + 30))
-            sRandomPlayerbotMgr.CheckLfgQueue();
-    }
-
     if (sPlayerbotAIConfig.RandomBotAutologin && sPlayerbotAIConfig.RandomBotPrintStatsInterval &&
         time(nullptr) > (printStatsTimer + sPlayerbotAIConfig.RandomBotPrintStatsInterval))
     {
@@ -572,8 +542,8 @@ void RandomPlayerbotMgr::AssignAccountTypes()
     TC_LOG_INFO("playerbots", "Found {} total randombot accounts in database", allRandomBotAccounts.size());
 
     // Check existing assignments
-    PlayerbotsDatabasePreparedStatement* assignmentsStmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_ACCOUNT_TYPE);
-    PreparedQueryResult existingAssignments = PlayerbotsDatabase.Query(assignmentsStmt);
+    QueryResult existingAssignments = CharacterDatabase.Query(
+        "SELECT account_id, account_type FROM playerbots_account_type");
     std::map<uint32, uint8> currentAssignments;
 
     if (existingAssignments)
@@ -592,10 +562,9 @@ void RandomPlayerbotMgr::AssignAccountTypes()
     {
         if (currentAssignments.find(accountId) == currentAssignments.end())
         {
-            PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_INS_ACCOUNT_TYPE);
-            PlayerbotSetData(stmt, 0, accountId);
-            PlayerbotSetData(stmt, 1, uint8(0));
-            PlayerbotsDatabase.DirectExecute(stmt);
+            CharacterDatabase.DirectPExecute(
+                "INSERT INTO playerbots_account_type (account_id, account_type) VALUES ({}, {}) ON DUPLICATE KEY UPDATE account_type = account_type",
+                accountId, uint8(0));
             currentAssignments[accountId] = 0;
         }
     }
@@ -634,10 +603,9 @@ void RandomPlayerbotMgr::AssignAccountTypes()
             uint32 accountId = allRandomBotAccounts[i];
             if (currentAssignments[accountId] == 0) // Unassigned
             {
-                PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_UPD_ACCOUNT_TYPE);
-                PlayerbotSetData(stmt, 0, uint8(1));
-                PlayerbotSetData(stmt, 1, accountId);
-                PlayerbotsDatabase.DirectExecute(stmt);
+                CharacterDatabase.DirectPExecute(
+                    "UPDATE playerbots_account_type SET account_type = {}, assignment_date = NOW() WHERE account_id = {}",
+                    uint8(1), accountId);
                 currentAssignments[accountId] = 1;
                 assigned++;
             }
@@ -660,10 +628,9 @@ void RandomPlayerbotMgr::AssignAccountTypes()
             uint32 accountId = allRandomBotAccounts[idx];
             if (currentAssignments[accountId] == 0) // Unassigned
             {
-                PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_UPD_ACCOUNT_TYPE);
-                PlayerbotSetData(stmt, 0, uint8(2));
-                PlayerbotSetData(stmt, 1, accountId);
-                PlayerbotsDatabase.DirectExecute(stmt);
+                CharacterDatabase.DirectPExecute(
+                    "UPDATE playerbots_account_type SET account_type = {}, assignment_date = NOW() WHERE account_id = {}",
+                    uint8(2), accountId);
                 currentAssignments[accountId] = 2;
                 assigned++;
             }
@@ -689,10 +656,9 @@ void RandomPlayerbotMgr::AssignAccountTypes()
 
 bool RandomPlayerbotMgr::IsAccountType(uint32 accountId, uint8 accountType)
 {
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_ACCOUNT_TYPE_BY_ACCOUNT_AND_TYPE);
-    PlayerbotSetData(stmt, 0, accountId);
-    PlayerbotSetData(stmt, 1, accountType);
-    return PlayerbotsDatabase.Query(stmt) != nullptr;
+    return CharacterDatabase.PQuery(
+               "SELECT 1 FROM playerbots_account_type WHERE account_id = {} AND account_type = {}",
+               accountId, accountType) != nullptr;
 }
 
 bool RandomPlayerbotMgr::IsAddClassAccount(uint32 accountId) const
@@ -782,8 +748,7 @@ uint32 RandomPlayerbotMgr::AddRandomBots()
         {
             if (GetEventValue(charInfo.guid, "add") ||
                 GetPlayerBot(charInfo.guid) ||
-                currentBots.contains(charInfo.guid) ||
-                (sPlayerbotAIConfig.DisableDeathKnightLogin && charInfo.rClass == CLASS_DEATH_KNIGHT))
+                currentBots.contains(charInfo.guid))
                 return false;
 
             SetEventValue(charInfo.guid, "add", 1, YEAR);
@@ -1006,474 +971,6 @@ uint32 RandomPlayerbotMgr::GetScheduledBotCount()
         return static_cast<uint32>(minCount + range * sinceMinCount / riseDuration);
 
     return static_cast<uint32>(maxCount - range * (sinceMinCount - riseDuration) / fallDuration);
-}
-
-void RandomPlayerbotMgr::LoadBattleMastersCache()
-{
-    BattleMastersCache.clear();
-    BattleMasterSpawnIds.clear();
-
-    TC_LOG_INFO("playerbots", "Loading Battlemasters Cache...");
-
-    QueryResult result = WorldDatabase.PQuery("SELECT `entry`,`bg_template` FROM `battlemaster_entry`");
-
-    if (!result)
-    {
-        return;
-    }
-
-    std::vector<std::pair<uint32, uint32>> battleMasterEntries;
-    do
-    {
-        Field* fields = result->Fetch();
-        uint32 entry = PlayerbotFieldGet<uint32>(fields[0]);
-        battleMasterEntries.emplace_back(entry, PlayerbotFieldGet<uint32>(fields[1]));
-        BattleMasterSpawnIds.emplace(entry, 0);
-    } while (result->NextRow());
-
-    // Resolve every entry to its first spawn once; 0 marks entries with no static spawn.
-    for (auto const& [spawnId, creatureData] : sObjectMgr->GetAllCreatureData())
-    {
-        auto spawnIt = BattleMasterSpawnIds.find(creatureData.id);
-        if (spawnIt != BattleMasterSpawnIds.end() && !spawnIt->second)
-            spawnIt->second = spawnId;
-    }
-
-    uint32 count = 0;
-
-    for (auto const& [entry, bgTypeId] : battleMasterEntries)
-    {
-        ++count;
-
-        CreatureTemplate const* bmaster = sObjectMgr->GetCreatureTemplate(entry);
-        if (!bmaster)
-            continue;
-
-        FactionTemplateEntry const* bmFaction = sFactionTemplateStore.LookupEntry(bmaster->faction);
-        uint32 bmFactionId = bmFaction->Faction;
-        FactionEntry const* bmParentFaction = sFactionStore.LookupEntry(bmFactionId);
-        uint32 bmParentTeam = bmFaction->FactionGroup;
-        TeamId bmTeam = TEAM_NEUTRAL;
-        if (bmParentTeam == 891)
-            bmTeam = TEAM_ALLIANCE;
-
-        if (bmFactionId == 189)
-            bmTeam = TEAM_ALLIANCE;
-
-        if (bmParentTeam == 892)
-            bmTeam = TEAM_HORDE;
-
-        if (bmFactionId == 66)
-            bmTeam = TEAM_HORDE;
-
-        BattleMastersCache[bmTeam][BattlegroundTypeId(bgTypeId)].insert(
-            BattleMastersCache[bmTeam][BattlegroundTypeId(bgTypeId)].end(), entry);
-        TC_LOG_DEBUG("playerbots", "Cached Battlemaster #{} for BG Type {} ({})", entry, bgTypeId,
-                  bmTeam == TEAM_ALLIANCE ? "Alliance"
-                  : bmTeam == TEAM_HORDE  ? "Horde"
-                                          : "Neutral");
-    }
-
-    TC_LOG_INFO("playerbots", ">> Loaded {} battlemaster entries", count);
-}
-
-std::vector<uint32> parseBrackets(std::string const& str)
-{
-    std::vector<uint32> brackets;
-    std::stringstream ss(str);
-    std::string item;
-
-    while (std::getline(ss, item, ','))
-    {
-        brackets.push_back(static_cast<uint32>(std::stoi(item)));
-    }
-
-    return brackets;
-}
-
-void RandomPlayerbotMgr::CheckBgQueue()
-{
-    if (!BgCheckTimer)
-    {
-        BgCheckTimer = time(nullptr);
-        return;  // Exit immediately after initializing the timer
-    }
-
-    if (time(nullptr) < BgCheckTimer)
-    {
-        return;  // No need to proceed if the current time is less than the timer
-    }
-
-    // Update the timer to the current time
-    BgCheckTimer = time(nullptr);
-
-    TC_LOG_DEBUG("playerbots", "Checking BG Queue...");
-
-    // Initialize Battleground Data (do not clear here)
-
-
-    // A participant may level past the queue's bracket while waiting or inside the match.
-    // Use the bracket assigned by the queue or the instance, never their current level.
-    auto getQueueBracket = [&](Player* participant, Battleground* bg, uint8 slot,
-                               BattlegroundQueueTypeId queueTypeId, uint32 mapId) -> PVPDifficultyEntry const*
-    {
-        if (participant->InBattleground() && participant->GetBattlegroundQueueTypeId(slot) == queueTypeId)
-            return bg ? DB2Manager::GetBattlegroundBracketById(mapId, bg->GetBracketId()) : nullptr;
-
-        GroupQueueInfo groupInfo;
-        BattlegroundQueue& queue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
-        if (!queue.GetPlayerGroupInfoData(participant->GetGUID(), &groupInfo))
-            return nullptr;
-        // 12.x keeps no bracket id in GroupQueueInfo; the participant level gives the bracket.
-        return DB2Manager::GetBattlegroundBracketByLevel(mapId, participant->GetLevel());
-    };
-
-    // Process real players and populate Battleground Data with player/queue count
-    // Opens a queue for bots to join
-    for (Player* player : players)
-    {
-        // Skip player if not currently in a queue
-        if (!player->InBattlegroundQueue())
-            continue;
-
-        Battleground* bg = player->GetBattleground();
-        if (bg && bg->GetStatus() == STATUS_WAIT_LEAVE)
-            continue;
-
-        TeamId teamId = player->GetTeamId();
-
-        for (uint8 queueType = 0; queueType < PLAYER_MAX_BATTLEGROUND_QUEUES; ++queueType)
-        {
-            BattlegroundQueueTypeId queueTypeId = player->GetBattlegroundQueueTypeId(queueType);
-            if (queueTypeId == BATTLEGROUND_QUEUE_NONE)
-                continue;
-
-            // Check if real player is able to create/join this queue
-            BattlegroundTypeId bgTypeId = BattlegroundTypeId(queueTypeId.BattlemasterListId);
-            uint32 mapId = uint32(sBattlegroundMgr->GetBattlegroundTemplateByTypeId(bgTypeId)->MapIDs.front());
-            PVPDifficultyEntry const* pvpDiff = getQueueBracket(player, bg, queueType, queueTypeId, mapId);
-            if (!pvpDiff)
-                continue;
-
-            // If player is allowed, populate the BattlegroundData with the appropriate level requirements
-            BattlegroundBracketId bracketId = pvpDiff->GetBracketId();
-            BattlegroundData[queueTypeId.GetPacked()][bracketId].minLevel = pvpDiff->MinLevel;
-            BattlegroundData[queueTypeId.GetPacked()][bracketId].maxLevel = pvpDiff->MaxLevel;
-
-            // Arena logic
-            bool isRated = false;
-            if ((queueTypeId.Type == uint8(BattlegroundQueueIdType::Arena) || queueTypeId.Type == uint8(BattlegroundQueueIdType::ArenaSkirmish)))
-            {
-                BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
-                GroupQueueInfo ginfo;
-
-                if (bgQueue.GetPlayerGroupInfoData(player->GetGUID(), &ginfo))
-                {
-                    isRated = queueTypeId.Rated;
-                }
-
-                if (player->InArena())
-                    isRated = true;
-
-                if (isRated)
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].ratedArenaPlayerCount++;
-                else
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].skirmishArenaPlayerCount++;
-            }
-            // BG Logic
-            else
-            {
-                if (teamId == TEAM_ALLIANCE)
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgAlliancePlayerCount++;
-                else
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgHordePlayerCount++;
-
-                // If a player has joined the BG, update the instance count in BattlegroundData (for consistency)
-                if (player->InBattleground() && player->GetBattlegroundQueueTypeId(queueType) == queueTypeId)
-                {
-                    std::vector<uint32>* instanceIds = nullptr;
-                    uint32 instanceId = bg->GetInstanceID();
-
-                    instanceIds = &BattlegroundData[queueTypeId.GetPacked()][bracketId].bgInstances;
-                    if (instanceIds &&
-                        std::find(instanceIds->begin(), instanceIds->end(), instanceId) == instanceIds->end())
-                        instanceIds->push_back(instanceId);
-
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgInstanceCount = instanceIds->size();
-
-                    std::vector<uint32>& playerInstances = BattlegroundData[queueTypeId.GetPacked()][bracketId].bgPlayerInstances;
-                    if (std::find(playerInstances.begin(), playerInstances.end(), instanceId) == playerInstances.end())
-                        playerInstances.push_back(instanceId);
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgInstanceCapacity[instanceId] =
-                        bg->GetMaxPlayersPerTeam();
-                }
-            }
-
-            if (!player->InBattleground())
-            {
-                if ((queueTypeId.Type == uint8(BattlegroundQueueIdType::Arena) || queueTypeId.Type == uint8(BattlegroundQueueIdType::ArenaSkirmish)))
-                {
-                    if (isRated)
-                        BattlegroundData[queueTypeId.GetPacked()][bracketId].activeRatedArenaQueue = 1;
-                    else
-                        BattlegroundData[queueTypeId.GetPacked()][bracketId].activeSkirmishArenaQueue = 1;
-                }
-                else
-                {
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].activeBgQueue = 1;
-                }
-            }
-        }
-    }
-
-    // Process player bots
-    for (auto& [guid, bot] : playerBots)
-    {
-        if (!bot || !bot->InBattlegroundQueue() || !bot->IsInWorld() || !IsRandomBot(bot))
-            continue;
-
-        Battleground* bg = bot->GetBattleground();
-        if (bg && bg->GetStatus() == STATUS_WAIT_LEAVE)
-            continue;
-
-        TeamId teamId = bot->GetTeamId();
-
-        for (uint8 queueType = 0; queueType < PLAYER_MAX_BATTLEGROUND_QUEUES; ++queueType)
-        {
-            BattlegroundQueueTypeId queueTypeId = bot->GetBattlegroundQueueTypeId(queueType);
-            if (queueTypeId == BATTLEGROUND_QUEUE_NONE)
-                continue;
-
-            BattlegroundTypeId bgTypeId = BattlegroundTypeId(queueTypeId.BattlemasterListId);
-            uint32 mapId = uint32(sBattlegroundMgr->GetBattlegroundTemplateByTypeId(bgTypeId)->MapIDs.front());
-            PVPDifficultyEntry const* pvpDiff = getQueueBracket(bot, bg, queueType, queueTypeId, mapId);
-            if (!pvpDiff)
-                continue;
-
-            BattlegroundBracketId bracketId = pvpDiff->GetBracketId();
-            BattlegroundData[queueTypeId.GetPacked()][bracketId].minLevel = pvpDiff->MinLevel;
-            BattlegroundData[queueTypeId.GetPacked()][bracketId].maxLevel = pvpDiff->MaxLevel;
-
-            if ((queueTypeId.Type == uint8(BattlegroundQueueIdType::Arena) || queueTypeId.Type == uint8(BattlegroundQueueIdType::ArenaSkirmish)))
-            {
-                bool isRated = false;
-                BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
-                GroupQueueInfo ginfo;
-
-                if (bgQueue.GetPlayerGroupInfoData(guid, &ginfo))
-                {
-                    isRated = queueTypeId.Rated;
-                }
-
-                if (bot->InArena())
-                    isRated = true;
-
-                if (isRated)
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].ratedArenaBotCount++;
-                else
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].skirmishArenaBotCount++;
-            }
-            else
-            {
-                if (teamId == TEAM_ALLIANCE)
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgAllianceBotCount++;
-                else
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgHordeBotCount++;
-            }
-
-            if (bot->InBattleground() && bot->GetBattlegroundQueueTypeId(queueType) == queueTypeId)
-            {
-                std::vector<uint32>* instanceIds = nullptr;
-                uint32 instanceId = bg->GetInstanceID();
-                bool isArena = false;
-                bool isRated = false;
-
-                // Arena logic
-                if (bot->InArena())
-                {
-                    isArena = true;
-                    if (bg->isRated())
-                    {
-                        isRated = true;
-                        instanceIds = &BattlegroundData[queueTypeId.GetPacked()][bracketId].ratedArenaInstances;
-                    }
-                    else
-                    {
-                        instanceIds = &BattlegroundData[queueTypeId.GetPacked()][bracketId].skirmishArenaInstances;
-                    }
-                }
-                // BG Logic
-                else
-                {
-                    instanceIds = &BattlegroundData[queueTypeId.GetPacked()][bracketId].bgInstances;
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgInstanceCapacity[instanceId] =
-                        bg->GetMaxPlayersPerTeam();
-                    ++BattlegroundData[queueTypeId.GetPacked()][bracketId].bgInstanceBots[instanceId][teamId];
-                }
-
-                if (instanceIds &&
-                    std::find(instanceIds->begin(), instanceIds->end(), instanceId) == instanceIds->end())
-                    instanceIds->push_back(instanceId);
-
-                if (isArena)
-                {
-                    if (isRated)
-                        BattlegroundData[queueTypeId.GetPacked()][bracketId].ratedArenaInstanceCount = instanceIds->size();
-                    else
-                        BattlegroundData[queueTypeId.GetPacked()][bracketId].skirmishArenaInstanceCount = instanceIds->size();
-                }
-                else
-                {
-                    BattlegroundData[queueTypeId.GetPacked()][bracketId].bgInstanceCount = instanceIds->size();
-                }
-            }
-        }
-    }
-
-    // If enabled, wait for all bots to have logged in before queueing for Arena's / BG's
-    if (sPlayerbotAIConfig.RandomBotAutoJoinBG && playerBots.size() >= GetMaxAllowedBotCount())
-    {
-        uint32 randomBotAutoJoinArenaBracket = sPlayerbotAIConfig.RandomBotAutoJoinArenaBracket;
-        uint32 randomBotAutoJoinBGRatedArena2v2Count = sPlayerbotAIConfig.RandomBotAutoJoinBGRatedArena2v2Count;
-        uint32 randomBotAutoJoinBGRatedArena3v3Count = sPlayerbotAIConfig.RandomBotAutoJoinBGRatedArena3v3Count;
-        uint32 randomBotAutoJoinBGRatedArena5v5Count = sPlayerbotAIConfig.RandomBotAutoJoinBGRatedArena5v5Count;
-
-        uint32 randomBotAutoJoinBGICCount = sPlayerbotAIConfig.RandomBotAutoJoinBGICCount;
-        uint32 randomBotAutoJoinBGEYCount = sPlayerbotAIConfig.RandomBotAutoJoinBGEYCount;
-        uint32 randomBotAutoJoinBGAVCount = sPlayerbotAIConfig.RandomBotAutoJoinBGAVCount;
-        uint32 randomBotAutoJoinBGABCount = sPlayerbotAIConfig.RandomBotAutoJoinBGABCount;
-        uint32 randomBotAutoJoinBGWSCount = sPlayerbotAIConfig.RandomBotAutoJoinBGWSCount;
-
-        std::vector<uint32> icBrackets = parseBrackets(sPlayerbotAIConfig.RandomBotAutoJoinICBrackets);
-        std::vector<uint32> eyBrackets = parseBrackets(sPlayerbotAIConfig.RandomBotAutoJoinEYBrackets);
-        std::vector<uint32> avBrackets = parseBrackets(sPlayerbotAIConfig.RandomBotAutoJoinAVBrackets);
-        std::vector<uint32> abBrackets = parseBrackets(sPlayerbotAIConfig.RandomBotAutoJoinABBrackets);
-        std::vector<uint32> wsBrackets = parseBrackets(sPlayerbotAIConfig.RandomBotAutoJoinWSBrackets);
-
-        // Check both bgInstanceCount / bgInstances.size
-        // to help counter against potentional inconsistencies
-        auto updateRatedArenaInstanceCount = [&](uint32 queueType, uint32 bracket, uint32 minCount)
-        {
-            if (BattlegroundData[queueType][bracket].activeRatedArenaQueue == 0 &&
-                BattlegroundData[queueType][bracket].ratedArenaInstanceCount < minCount &&
-                BattlegroundData[queueType][bracket].ratedArenaInstances.size() < minCount)
-                BattlegroundData[queueType][bracket].activeRatedArenaQueue = 1;
-        };
-
-        auto updateBGInstanceCount = [&](uint32 queueType, std::vector<uint32> brackets, uint32 minCount)
-        {
-            for (uint32 bracket : brackets)
-            {
-                BattlegroundData[queueType][bracket].bgAutoJoinTarget = minCount;
-                if (BattlegroundData[queueType][bracket].activeBgQueue == 0 &&
-                    BattlegroundData[queueType][bracket].bgInstanceCount < minCount &&
-                    BattlegroundData[queueType][bracket].bgInstances.size() < minCount)
-                    BattlegroundData[queueType][bracket].activeBgQueue = 1;
-            }
-        };
-
-        // Update rated arena instance counts
-        updateRatedArenaInstanceCount(BATTLEGROUND_QUEUE_2v2, randomBotAutoJoinArenaBracket,
-                                      randomBotAutoJoinBGRatedArena2v2Count);
-        updateRatedArenaInstanceCount(BATTLEGROUND_QUEUE_3v3, randomBotAutoJoinArenaBracket,
-                                      randomBotAutoJoinBGRatedArena3v3Count);
-        updateRatedArenaInstanceCount(BATTLEGROUND_QUEUE_5v5, randomBotAutoJoinArenaBracket,
-                                      randomBotAutoJoinBGRatedArena5v5Count);
-
-        // Update battleground instance counts
-        updateBGInstanceCount(BATTLEGROUND_QUEUE_IC, icBrackets, randomBotAutoJoinBGICCount);
-        updateBGInstanceCount(BATTLEGROUND_QUEUE_EY, eyBrackets, randomBotAutoJoinBGEYCount);
-        updateBGInstanceCount(BATTLEGROUND_QUEUE_AV, avBrackets, randomBotAutoJoinBGAVCount);
-        updateBGInstanceCount(BATTLEGROUND_QUEUE_AB, abBrackets, randomBotAutoJoinBGABCount);
-        updateBGInstanceCount(BATTLEGROUND_QUEUE_WS, wsBrackets, randomBotAutoJoinBGWSCount);
-    }
-
-    LogBattlegroundInfo();
-}
-
-void RandomPlayerbotMgr::LogBattlegroundInfo()
-{
-    for (auto const& queueTypePair : BattlegroundData)
-    {
-        uint8 queueType = queueTypePair.first;
-
-        BattlegroundQueueTypeId queueTypeId = BattlegroundQueueTypeId(queueType);
-
-        if (uint8 type = (queueTypeId.Type == uint8(BattlegroundQueueIdType::Arena) || queueTypeId.Type == uint8(BattlegroundQueueIdType::ArenaSkirmish)))
-        {
-            for (auto const& bracketIdPair : queueTypePair.second)
-            {
-                auto& bgInfo = bracketIdPair.second;
-                if (bgInfo.minLevel == 0)
-                    continue;
-                TC_LOG_INFO("playerbots",
-                         "ARENA:{} {}: Player (Skirmish:{}, Rated:{}) Bots (Skirmish:{}, Rated:{}) Total (Skirmish:{} "
-                         "Rated:{}), Instances (Skirmish:{} Rated:{})",
-                         type == ARENA_TYPE_2v2   ? "2v2"
-                         : type == ARENA_TYPE_3v3 ? "3v3"
-                                                  : "5v5",
-                         std::to_string(bgInfo.minLevel) + "-" + std::to_string(bgInfo.maxLevel),
-                         bgInfo.skirmishArenaPlayerCount, bgInfo.ratedArenaPlayerCount, bgInfo.skirmishArenaBotCount,
-                         bgInfo.ratedArenaBotCount, bgInfo.skirmishArenaPlayerCount + bgInfo.skirmishArenaBotCount,
-                         bgInfo.ratedArenaPlayerCount + bgInfo.ratedArenaBotCount, bgInfo.skirmishArenaInstanceCount,
-                         bgInfo.ratedArenaInstanceCount);
-            }
-            continue;
-        }
-
-        BattlegroundTypeId bgTypeId = BattlegroundTypeId(queueTypeId.BattlemasterListId);
-        std::string _bgType;
-        switch (bgTypeId)
-        {
-            case BATTLEGROUND_AV:
-                _bgType = "AV";
-                break;
-            case BATTLEGROUND_WS:
-                _bgType = "WSG";
-                break;
-            case BATTLEGROUND_AB:
-                _bgType = "AB";
-                break;
-            case BATTLEGROUND_EY:
-                _bgType = "EotS";
-                break;
-            case BATTLEGROUND_RB:
-                _bgType = "Random";
-                break;
-            case BATTLEGROUND_SA:
-                _bgType = "SotA";
-                break;
-            case BATTLEGROUND_IC:
-                _bgType = "IoC";
-                break;
-            default:
-                _bgType = "Other";
-                break;
-        }
-
-        for (auto const& bracketIdPair : queueTypePair.second)
-        {
-            auto& bgInfo = bracketIdPair.second;
-            if (bgInfo.minLevel == 0)
-                continue;
-
-            TC_LOG_INFO("playerbots",
-                     "BG:{} {}: Player ({}:{}) Bot ({}:{}) Total (A:{} H:{}), Instances {}, Active Queue: {}", _bgType,
-                     std::to_string(bgInfo.minLevel) + "-" + std::to_string(bgInfo.maxLevel),
-                     bgInfo.bgAlliancePlayerCount, bgInfo.bgHordePlayerCount, bgInfo.bgAllianceBotCount,
-                     bgInfo.bgHordeBotCount, bgInfo.bgAlliancePlayerCount + bgInfo.bgAllianceBotCount,
-                     bgInfo.bgHordePlayerCount + bgInfo.bgHordeBotCount, bgInfo.bgInstanceCount, bgInfo.activeBgQueue);
-        }
-    }
-    TC_LOG_DEBUG("playerbots", "BG Queue check finished");
-}
-
-void RandomPlayerbotMgr::CheckLfgQueue()
-{
-    // 12.x keeps the retail LFG dungeon list private and 1.60 has no dungeon finder window:
-    // LFG content is driven by the V2 dungeon filler, so only the legacy lists are cleared.
-    LfgDungeons[TEAM_ALLIANCE].clear();
-    LfgDungeons[TEAM_HORDE].clear();
 }
 
 void RandomPlayerbotMgr::CheckPlayers()
@@ -1902,8 +1399,8 @@ void RandomPlayerbotMgr::PrepareAddclassCache()
     {
         for (uint8 claz = CLASS_WARRIOR; claz <= CLASS_DRUID; claz++)
         {
-            // 1.60 has no death knight (6) and no monk (10) - those slots are empty.
-            if (claz == CLASS_DEATH_KNIGHT || claz == 10)
+            // 1.60 has nine classes; the other class ids are empty slots.
+            if (!PlayerbotCompat::IsClassicClass(claz))
                 continue;
 
             QueryResult results = CharacterDatabase.PQuery(
@@ -1934,17 +1431,7 @@ void RandomPlayerbotMgr::Init()
     if (sPlayerbotAIConfig.AddClassCommand)
         sRandomPlayerbotMgr.PrepareAddclassCache();
 
-    if (sPlayerbotAIConfig.RandomBotJoinBG)
-        sRandomPlayerbotMgr.LoadBattleMastersCache();
-
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_RANDOM_BOTS_BY_EVENT);
-    PlayerbotSetData(stmt, 0, std::string("add"));
-    PlayerbotsDatabase.DirectExecute(stmt);
-}
-
-void RandomPlayerbotMgr::InitArenaTeams()
-{
-    // 1.60 has no arena and no arena teams.
+    CharacterDatabase.DirectExecute("DELETE FROM playerbots_random_bots WHERE event = 'add'");
 }
 
 void RandomPlayerbotMgr::RandomTeleportForLevel(Player* bot)
@@ -2188,7 +1675,7 @@ void RandomPlayerbotMgr::Randomize(Player* bot)
     if (bot->InBattleground())
         return;
 
-    if (bot->GetLevel() < 3 || (bot->GetLevel() < 56 && bot->GetClass() == CLASS_DEATH_KNIGHT))
+    if (bot->GetLevel() < 3)
     {
         RandomizeFirst(bot);
     }
@@ -2244,22 +1731,13 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
                             std::min(playersLevel, sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL)));
 
     uint32 minLevel = sPlayerbotAIConfig.RandomBotMinLevel;
-    if (bot->GetClass() == CLASS_DEATH_KNIGHT)
-    {
-        maxLevel = std::max(maxLevel, sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL));
-        minLevel = std::max(minLevel, sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL));
-    }
-
     PerfMonitorOperation* pmo = sPerfMonitor.start(PERF_MON_RNDBOT, "RandomizeFirst");
 
     uint32 level;
 
     if (sPlayerbotAIConfig.DowngradeMaxLevelBot && bot->GetLevel() >= sPlayerbotAIConfig.RandomBotMaxLevel)
     {
-        if (bot->GetClass() == CLASS_DEATH_KNIGHT)
-            level = sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL);
-        else
-            level = sPlayerbotAIConfig.RandomBotMinLevel;
+        level = sPlayerbotAIConfig.RandomBotMinLevel;
     }
     else
     {
@@ -2278,13 +1756,7 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
 
     if (sPlayerbotAIConfig.DisableRandomLevels)
     {
-        // Death knights cannot exist below the heroic starting level.
-        if (bot->GetClass() == CLASS_DEATH_KNIGHT)
-            level = std::max(sPlayerbotAIConfig.RandomBotStartingLevel,
-                             sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL));
-
-        else
-            level = sPlayerbotAIConfig.RandomBotStartingLevel;
+        level = sPlayerbotAIConfig.RandomBotStartingLevel;
     }
 
     SetValue(bot, "level", level);
@@ -2294,11 +1766,9 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
     uint32 randomTime =
         urand(sPlayerbotAIConfig.MinRandomBotRandomizeTime, sPlayerbotAIConfig.MaxRandomBotRandomizeTime);
 
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_UPD_RANDOM_BOTS);
-    PlayerbotSetData(stmt, 0, randomTime);
-    PlayerbotSetData(stmt, 1, "bot_delete");
-    PlayerbotSetData(stmt, 2, bot->GetGUID().GetCounter());
-    PlayerbotsDatabase.Execute(stmt);
+    CharacterDatabase.PExecute(
+        "UPDATE playerbots_random_bots SET validIn = {} WHERE event = 'bot_delete' AND bot = {}",
+        randomTime, bot->GetGUID().GetCounter());
 
     // teleport to a random inn for bot level
     botAI->Reset(true);
@@ -2327,11 +1797,9 @@ void RandomPlayerbotMgr::RandomizeMin(Player* bot)
     uint32 randomTime =
         urand(sPlayerbotAIConfig.MinRandomBotRandomizeTime, sPlayerbotAIConfig.MaxRandomBotRandomizeTime);
 
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_UPD_RANDOM_BOTS);
-    PlayerbotSetData(stmt, 0, randomTime);
-    PlayerbotSetData(stmt, 1, "bot_delete");
-    PlayerbotSetData(stmt, 2, bot->GetGUID().GetCounter());
-    PlayerbotsDatabase.Execute(stmt);
+    CharacterDatabase.PExecute(
+        "UPDATE playerbots_random_bots SET validIn = {} WHERE event = 'bot_delete' AND bot = {}",
+        randomTime, bot->GetGUID().GetCounter());
 
     // teleport to a random inn for bot level
     botAI->Reset(true);
@@ -2471,8 +1939,8 @@ bool RandomPlayerbotMgr::IsAddclassBot(ObjectGuid::LowType bot)
     // Check the cache with faction considerations
     for (uint8 claz = CLASS_WARRIOR; claz <= CLASS_DRUID; claz++)
     {
-        // 1.60 has no death knight (6) and no monk (10) - those slots are empty.
-        if (claz == CLASS_DEATH_KNIGHT || claz == 10)
+        // 1.60 has nine classes; the other class ids are empty slots.
+        if (!PlayerbotCompat::IsClassicClass(claz))
             continue;
 
         for (uint8 isAlliance = 0; isAlliance <= 1; isAlliance++)
@@ -2500,12 +1968,9 @@ void RandomPlayerbotMgr::GetBots()
     if (!currentBots.empty())
         return;
 
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_RANDOM_BOTS_BY_OWNER_AND_EVENT);
-    PlayerbotSetData(stmt, 0, 0);
-    PlayerbotSetData(stmt, 1, "add");
     uint32 maxAllowedBotCount = GetEventValue(0, "bot_count");
-    if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
+    if (QueryResult result = CharacterDatabase.Query(
+            "SELECT bot FROM playerbots_random_bots WHERE owner = 0 AND event = 'add'"))
     {
         do
         {
@@ -2520,29 +1985,6 @@ void RandomPlayerbotMgr::GetBots()
     }
 }
 
-std::vector<uint32> RandomPlayerbotMgr::GetBgBots(uint32 bracket)
-{
-    // if (!currentBgBots.empty()) return currentBgBots;
-
-    std::vector<uint32> BgBots;
-
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_RANDOM_BOTS_BY_EVENT_AND_VALUE);
-    PlayerbotSetData(stmt, 0, "bg");
-    PlayerbotSetData(stmt, 1, bracket);
-    if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
-    {
-        do
-        {
-            Field* fields = result->Fetch();
-            uint32 bot = PlayerbotFieldGet<uint32>(fields[0]);
-            BgBots.push_back(bot);
-        } while (result->NextRow());
-    }
-
-    return BgBots;
-}
-
 CachedEvent* RandomPlayerbotMgr::FindEvent(uint32 bot, std::string const& event)
 {
     BotEventCache& cache = eventCache[bot];
@@ -2552,12 +1994,9 @@ CachedEvent* RandomPlayerbotMgr::FindEvent(uint32 bot, std::string const& event)
     {
         cache.events.clear();
 
-        PlayerbotsDatabasePreparedStatement* stmt =
-            PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_RANDOM_BOTS_BY_OWNER_AND_BOT);
-        PlayerbotSetData(stmt, 0, 0);
-        PlayerbotSetData(stmt, 1, bot);
-
-        if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
+        if (QueryResult result = CharacterDatabase.PQuery(
+                "SELECT `event`, `value`, `time`, validIn, `data` FROM playerbots_random_bots WHERE owner = 0 AND bot = {}",
+                bot))
         {
             do
             {
@@ -2618,34 +2057,26 @@ std::string RandomPlayerbotMgr::GetEventData(uint32 bot, std::string const& even
 uint32 RandomPlayerbotMgr::SetEventValue(uint32 bot, std::string const& event, uint32 value, uint32 validIn,
                                          std::string const& data)
 {
-    PlayerbotsDatabaseTransaction trans = PlayerbotsDatabase.BeginTransaction();
+    std::string escapedEvent = event;
+    std::string escapedData = data;
+    CharacterDatabase.EscapeString(escapedEvent);
+    CharacterDatabase.EscapeString(escapedData);
 
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_RANDOM_BOTS_BY_OWNER_AND_EVENT);
-    PlayerbotSetData(stmt, 0, 0);
-    PlayerbotSetData(stmt, 1, bot);
-    PlayerbotSetData(stmt, 2, event.c_str());
-    trans->Append(stmt);
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+
+    trans->Append(Trinity::StringFormat(
+                      "DELETE FROM playerbots_random_bots WHERE owner = 0 AND bot = {} AND event = '{}'",
+                      bot, escapedEvent).c_str());
 
     if (value)
     {
-        stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_INS_RANDOM_BOTS);
-        PlayerbotSetData(stmt, 0, 0);
-        PlayerbotSetData(stmt, 1, bot);
-        PlayerbotSetData(stmt, 2, NowSeconds());
-        PlayerbotSetData(stmt, 3, validIn);
-        PlayerbotSetData(stmt, 4, event.c_str());
-        PlayerbotSetData(stmt, 5, value);
-
-        if (!data.empty())
-            PlayerbotSetData(stmt, 6, data.c_str());
-        else
-            stmt->setNull(6);  // NULL
-
-        trans->Append(stmt);
+        std::string const dataValue = data.empty() ? std::string("NULL") : ("'" + escapedData + "'");
+        trans->Append(Trinity::StringFormat(
+                          "INSERT INTO playerbots_random_bots (owner, bot, `time`, validIn, event, `value`, `data`) VALUES (0, {}, {}, {}, '{}', {}, {})",
+                          bot, NowSeconds(), validIn, escapedEvent, value, dataValue).c_str());
     }
 
-    PlayerbotsDatabase.CommitTransaction(trans);
+    CharacterDatabase.CommitTransaction(trans);
 
     // Update in-memory cache
     BotEventCache& cache = eventCache[bot];
@@ -2703,7 +2134,7 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* /*handler*/,
 
     if (cmd == "reset")
     {
-        PlayerbotsDatabase.Execute(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_RANDOM_BOTS));
+        CharacterDatabase.Execute("DELETE FROM playerbots_random_bots");
         sRandomPlayerbotMgr.eventCache.clear();
         TC_LOG_INFO("playerbots", "Random bots were reset for all players. Please restart the Server.");
         return true;
@@ -3637,11 +3068,8 @@ void RandomPlayerbotMgr::Remove(Player* bot)
 {
     ObjectGuid owner = bot->GetGUID();
 
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_RANDOM_BOTS_BY_OWNER);
-    PlayerbotSetData(stmt, 0, 0);
-    PlayerbotSetData(stmt, 1, owner.GetCounter());
-    PlayerbotsDatabase.Execute(stmt);
+    CharacterDatabase.PExecute(
+        "DELETE FROM playerbots_random_bots WHERE owner = 0 AND bot = {}", owner.GetCounter());
 
     uint32 botId = owner.GetCounter();
     eventCache.erase(botId);
@@ -3659,78 +3087,4 @@ CreatureData const* RandomPlayerbotMgr::GetCreatureDataByEntry(uint32 entry)
     }
 
     return nullptr;
-}
-
-ObjectGuid RandomPlayerbotMgr::GetBattleMasterGUID(Player* bot, BattlegroundTypeId bgTypeId)
-{
-    ObjectGuid battleMasterGUID = ObjectGuid::Empty;
-
-    TeamId team = bot->GetTeamId();
-    std::vector<uint32> Bms;
-
-    for (auto i = std::begin(BattleMastersCache[team][bgTypeId]); i != std::end(BattleMastersCache[team][bgTypeId]);
-         ++i)
-    {
-        Bms.insert(Bms.end(), *i);
-    }
-
-    for (auto i = std::begin(BattleMastersCache[TEAM_NEUTRAL][bgTypeId]);
-         i != std::end(BattleMastersCache[TEAM_NEUTRAL][bgTypeId]); ++i)
-    {
-        Bms.insert(Bms.end(), *i);
-    }
-
-    if (Bms.empty())
-        return battleMasterGUID;
-
-    float dist1 = FLT_MAX;
-
-    for (auto i = begin(Bms); i != end(Bms); ++i)
-    {
-        CreatureData const* data = nullptr;
-        auto spawnIt = BattleMasterSpawnIds.find(*i);
-        if (spawnIt == BattleMasterSpawnIds.end())
-            data = sRandomPlayerbotMgr.GetCreatureDataByEntry(*i);
-        else if (spawnIt->second)
-            data = sObjectMgr->GetCreatureData(spawnIt->second);
-
-        if (!data)
-            continue;
-
-        Unit* Bm = PlayerbotAI::GetUnit(data);
-        if (!Bm)
-            continue;
-
-        if (bot->GetMapId() != Bm->GetMapId())
-            continue;
-
-        // return first available guid on map if queue from anywhere
-        if (bgTypeId != BATTLEGROUND_AA && bgTypeId != BATTLEGROUND_BE && bgTypeId != BATTLEGROUND_RL && bgTypeId != BATTLEGROUND_DS && bgTypeId != BATTLEGROUND_NA)
-        {
-            battleMasterGUID = Bm->GetGUID();
-            break;
-        }
-
-        AreaTableEntry const* zone = sAreaTableStore.LookupEntry(Bm->GetZoneId());
-        if (!zone)
-            continue;
-
-        if ((zone->FactionGroupMask & FACTION_MASK_ALLIANCE) && bot->GetTeamId() == TEAM_ALLIANCE)
-            continue;
-
-        if ((zone->FactionGroupMask & FACTION_MASK_HORDE) && bot->GetTeamId() == TEAM_HORDE)
-            continue;
-
-        if (Bm->getDeathState() == DEAD)
-            continue;
-
-        float dist2 = ServerFacade::instance().GetDistance2d(bot, data->spawnPoint.GetPositionX(), data->spawnPoint.GetPositionY());
-        if (dist2 < dist1)
-        {
-            dist1 = dist2;
-            battleMasterGUID = Bm->GetGUID();
-        }
-    }
-
-    return battleMasterGUID;
 }

@@ -15,9 +15,9 @@ public:
     {
         for (uint8 i = 0; i < 3; ++i)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_HEAL ||
-                spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_HEAL_MAX_HEALTH ||
-                spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_HEAL_MECHANICAL)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_HEAL ||
+                GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_HEAL_MAX_HEALTH ||
+                GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_HEAL_MECHANICAL)
                 return true;
         }
 

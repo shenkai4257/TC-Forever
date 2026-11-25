@@ -35,11 +35,7 @@ public:
     bool isUseful() override;
 
 private:
-    bool HandleBattlegroundSpiritHealer();
     bool ShouldAutoRelease() const;
-    bool ShouldDelayBattlegroundRelease() const;
-
-    time_t m_bgGossipTime = 0;
 };
 
 class RepopAction : public SpiritHealerAction

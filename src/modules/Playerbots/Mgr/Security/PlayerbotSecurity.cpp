@@ -6,7 +6,6 @@
 
 #include "PlayerbotSecurity.h"
 #include "CharacterCache.h"
-#include "LFGMgr.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 
@@ -58,12 +57,6 @@ PlayerbotSecurityLevel PlayerbotSecurity::LevelFor(Player* from, DenyReason* rea
 
             return PLAYERBOT_SECURITY_DENY_ALL;
         }
-
-        // In a BG random bots have no master and the team shares one raid, so the group check denies everyone
-        if (sPlayerbotAIConfig.AllowBattlegroundCommands && !ignoreGroup && !botAI->HasGameClientMaster() &&
-            bot->InBattleground() && bot->GetBattlegroundId() == from->GetBattlegroundId() &&
-            bot->GetTeam() == from->GetTeam() && (IsRealPlayer(from) || IsSelfBot(from)))
-            return PLAYERBOT_SECURITY_ALLOW_ALL;
 
         Group* fromGroup = from->GetGroup();
         Group* botGroup = bot->GetGroup();
@@ -262,9 +255,6 @@ bool PlayerbotSecurity::CheckLevelFor(PlayerbotSecurityLevel level, bool silent,
                     break;
                 case PLAYERBOT_DENY_BG:
                     out << "I am in a queue for BG. Will do it later";
-                    break;
-                case PLAYERBOT_DENY_LFG:
-                    out << "I am in a queue for dungeon. Will do it later";
                     break;
                 default:
                     out << "I can't do that";

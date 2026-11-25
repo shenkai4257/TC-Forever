@@ -138,9 +138,6 @@ class TC_GAME_API ArenaTeam
 
         void SetCaptain(ObjectGuid guid);
         bool SetName(std::string const& name);
-        // Server-driven character helpers (bots): replace the emblem and pin every member's rating.
-        void SetEmblem(uint32 backgroundColor, uint8 emblemStyle, uint32 emblemColor, uint8 borderStyle, uint32 borderColor);
-        void SetRatingForAll(uint32 rating);
         bool AddMember(ObjectGuid PlayerGuid);
         void DelMember(ObjectGuid guid, bool cleanDb);
 

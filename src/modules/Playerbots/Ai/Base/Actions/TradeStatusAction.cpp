@@ -81,7 +81,6 @@ bool TradeStatusAction::Execute(Event event)
     {
         WorldPacket raw(CMSG_ACCEPT_TRADE);
         WorldPackets::Trade::AcceptTrade accept(std::move(raw));
-        accept.StateIndex = bot->GetTradeData() ? bot->GetTradeData()->GetClientStateIndex() : 0;
 
         uint32 discount = sRandomPlayerbotMgr.GetTradeDiscount(bot, trader);
         if (CheckTrade())
@@ -98,6 +97,8 @@ bool TradeStatusAction::Execute(Event event)
                     takenItemIds[item->GetTemplate()->GetId()] += item->GetCount();
             }
 
+            // the server checks the accept against the partner's current server state index
+            accept.StateIndex = trader->GetTradeData()->GetServerStateIndex();
             bot->GetSession()->HandleAcceptTradeOpcode(accept);
             if (bot->GetTradeData())
             {
@@ -130,12 +131,39 @@ bool TradeStatusAction::Execute(Event event)
             return true;
         }
     }
-    else if (status == TRADE_STATUS_INITIATED)
+    else if (status == TRADE_STATUS_PROPOSED)
     {
+        // Classic 1.60: the invited side gets PROPOSED and the window only opens once it answers
+        // CMSG_BEGIN_TRADE (INITIATED is what both sides get afterwards). The proposer gets PROPOSED
+        // too, naming its partner, and must not begin.
+        if (!bot->GetTradeData() || bot->GetTradeData()->IsAwaitingProposerBusy())
+            return false;
+
         if (!bot->HasInArc(CAST_ANGLE_IN_FRONT, trader, sPlayerbotAIConfig.SightDistance))
             bot->SetFacingToObject(trader);
 
         BeginTrade();
+        return true;
+    }
+    else if (status == TRADE_STATUS_INITIATED)
+    {
+        // the window is open on both sides now: show the master what the bot can offer
+        ListItemsVisitor visitor;
+        IterateItems(&visitor);
+
+        botAI->TellMaster("=== Inventory ===");
+        TellItems(visitor.items, visitor.soulbound);
+
+        if (sRandomPlayerbotMgr.IsRandomBot(bot))
+        {
+            uint32 discount = sRandomPlayerbotMgr.GetTradeDiscount(bot, botAI->GetMaster());
+            if (discount)
+            {
+                std::ostringstream out;
+                out << "Discount up to: " << chat->formatMoney(discount);
+                botAI->TellMaster(out);
+            }
+        }
         return true;
     }
     return false;
@@ -150,30 +178,13 @@ void TradeStatusAction::BeginTrade()
     WorldPacket raw(CMSG_BEGIN_TRADE);
     WorldPackets::Trade::BeginTrade begin(std::move(raw));
     bot->GetSession()->HandleBeginTradeOpcode(begin);
-
-    ListItemsVisitor visitor;
-    IterateItems(&visitor);
-
-    botAI->TellMaster("=== Inventory ===");
-    TellItems(visitor.items, visitor.soulbound);
-
-    if (sRandomPlayerbotMgr.IsRandomBot(bot))
-    {
-        uint32 discount = sRandomPlayerbotMgr.GetTradeDiscount(bot, botAI->GetMaster());
-        if (discount)
-        {
-            std::ostringstream out;
-            out << "Discount up to: " << chat->formatMoney(discount);
-            botAI->TellMaster(out);
-        }
-    }
 }
 
 void TradeStatusAction::CancelTrade()
 {
-    WorldPacket raw(CMSG_CANCEL_TRADE);
-    WorldPackets::Trade::CancelTrade cancel(std::move(raw));
-    bot->GetSession()->HandleCancelTradeOpcode(cancel);
+    // A refusal answers the proposer the way a client's decline does (CMSG_IGNORE_TRADE): a plain
+    // CANCELLED leaves the Classic 1.60 proposer's client waiting in "already trading".
+    bot->TradeCancel(true, TRADE_STATUS_PLAYER_BUSY);
 }
 
 bool TradeStatusAction::CheckTrade()

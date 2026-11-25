@@ -35,9 +35,6 @@ public:
     }
 
     Unit* Calculate() override;
-
-private:
-    float GetMaxAttackDistance();
 };
 
 #endif

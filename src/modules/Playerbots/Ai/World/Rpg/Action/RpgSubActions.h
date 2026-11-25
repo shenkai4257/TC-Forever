@@ -190,15 +190,6 @@ private:
     std::string const ActionName() override;
 };
 
-class RpgQueueBgAction : public RpgSubAction
-{
-public:
-    RpgQueueBgAction(PlayerbotAI* botAI, std::string const name = "rpg queue bg") : RpgSubAction(botAI, name) {}
-
-private:
-    std::string const ActionName() override;
-};
-
 class RpgBuyPetitionAction : public RpgSubAction
 {
 public:

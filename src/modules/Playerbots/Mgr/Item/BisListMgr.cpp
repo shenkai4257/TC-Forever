@@ -6,7 +6,8 @@
 
 #include "BisListMgr.h"
 #include "FieldHelper.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "DatabaseEnv.h"
 #include "Field.h"
 #include "Log.h"
@@ -16,8 +17,7 @@ void BisListMgr::LoadAll()
 {
     _bis.clear();
 
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_BIS_GEAR);
-    PreparedQueryResult result = PlayerbotsDatabase.Query(stmt);
+    QueryResult result = WorldDatabase.Query("SELECT class, tab, slot, faction, auto_gear_score_limit, item_id FROM playerbots_bis_gear");
     if (!result)
     {
         TC_LOG_INFO("server.loading", "playerbots_bis_gear table missing or empty");

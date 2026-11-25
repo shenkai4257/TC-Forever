@@ -56,7 +56,13 @@ bool LootRollAction::Execute(Event /*event*/)
                 vote = RollVote::Greed; // Not eligible, so "Greed"
         }
         else if (usage == ITEM_USAGE_DISENCHANT)
-            vote = sPlayerbotAIConfig.LootRollDisenchant ? RollVote::Disenchant : RollVote::Greed;
+        {
+            // Disenchant rolls are a WotLK (3.3) feature: with an enchanter in the group the roll
+            // window gains a disenchant vote that auto-disenchs the item for the winner. Classic
+            // 1.60 has no such vote, so the bot only ever greeds here.
+            // vote = sPlayerbotAIConfig.LootRollDisenchant ? RollVote::Disenchant : RollVote::Greed;
+            vote = RollVote::Greed;
+        }
         else
         {
             switch (proto->GetClass())
@@ -67,8 +73,9 @@ bool LootRollAction::Execute(Event /*event*/)
                     {
                         if (!RollUniqueCheck(proto, bot))
                             vote = RollVote::Need;
-                        else if (sPlayerbotAIConfig.LootRollDisenchant && CanBotDisenchant(proto, bot))
-                            vote = RollVote::Disenchant;
+                        // Disenchant vote is WotLK-only (see above), so an unusable duplicate greeds.
+                        // else if (sPlayerbotAIConfig.LootRollDisenchant && CanBotDisenchant(proto, bot))
+                        //     vote = RollVote::Disenchant;
                         else
                             vote = RollVote::Greed;
                     }
@@ -99,24 +106,20 @@ bool LootRollAction::Execute(Event /*event*/)
         else if (vote == RollVote::Greed && !sPlayerbotAIConfig.LootGreedRollLevel)
             vote = RollVote::Pass;
 
-        // In master loot and free-for-all the roll is not offered to the bots.
-        switch (group->GetLootMethod())
-        {
-            case MASTER_LOOT:
-            case FREE_FOR_ALL:
-                vote = RollVote::Pass;
-                break;
-            default:
-                break;
-        }
+        // No loot-method switch here, and none is needed: rolls only exist under GROUP_LOOT and
+        // NEED_BEFORE_GREED (LootItem::GetUiTypeForPlayer hands FREE_FOR_ALL clients an OWNER slot and
+        // MASTER_LOOT a MASTER slot instead of rolling), so reaching this point already means a real
+        // roll. What to vote on it is the config above, not the leader's loot method.
 
         // Never send a vote the roll does not offer (PlayerVote would refuse it anyway).
         if (vote == RollVote::Need && !(voteMask & ROLL_FLAG_TYPE_NEED))
             vote = (voteMask & ROLL_FLAG_TYPE_GREED) ? RollVote::Greed : RollVote::Pass;
         if (vote == RollVote::Greed && !(voteMask & ROLL_FLAG_TYPE_GREED))
             vote = RollVote::Pass;
-        if (vote == RollVote::Disenchant && !(voteMask & ROLL_FLAG_TYPE_DISENCHANT))
-            vote = (voteMask & ROLL_FLAG_TYPE_GREED) ? RollVote::Greed : RollVote::Pass;
+        // Classic 1.60 offers no disenchant vote, so the bot never produces one; the downgrade
+        // below is kept commented for the day the vote comes back.
+        // if (vote == RollVote::Disenchant && !(voteMask & ROLL_FLAG_TYPE_DISENCHANT))
+        //     vote = (voteMask & ROLL_FLAG_TYPE_GREED) ? RollVote::Greed : RollVote::Pass;
 
         if (roll->PlayerVote(bot, vote))
             voted = true;
@@ -150,7 +153,8 @@ RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto, ItemUsage 
             needVote = RollVote::Greed;
             break;
         case ITEM_USAGE_DISENCHANT:
-            needVote = sPlayerbotAIConfig.LootRollDisenchant ? RollVote::Disenchant : RollVote::Greed;
+            // WotLK-only disenchant vote; Classic greeds (see LootRollAction::Execute).
+            needVote = RollVote::Greed;
             break;
         default:
             break;
@@ -189,6 +193,8 @@ bool RollUniqueCheck(ItemTemplate const* proto, Player* bot)
     return false;
 }
 
+// WotLK (3.3) disenchant-roll helper: unused on Classic 1.60, where the roll window has no
+// disenchant vote. Kept for the day the feature returns.
 bool CanBotDisenchant(ItemTemplate const* proto, Player* bot)
 {
     // 12.x has no DisenchantID/RequiredDisenchantSkill on the item template: resolve the

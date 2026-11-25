@@ -6,7 +6,8 @@
 
 #include "RandomPlayerbotFactory.h"
 #include "FieldHelper.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "AccountMgr.h"
 #include "CharacterCache.h"
 #include "CharacterPackets.h"
@@ -91,12 +92,17 @@ constexpr RandomPlayerbotFactory::NameRaceAndGender RandomPlayerbotFactory::Comb
 
 bool RandomPlayerbotFactory::IsValidRaceClassCombination(uint8 race, uint8 cls, uint32 expansion)
 {
-    // skip expansion races if not playing with expansion
-    if (expansion < EXPANSION_THE_BURNING_CRUSADE && (race == RACE_BLOODELF || race == RACE_DRAENEI))
+    // only the races a real client could create (see IsBotRaceAllowed)
+    if (!IsBotRaceAllowed(race))
         return false;
 
-    // skip expansion classes if not playing with expansion
-    if (expansion < EXPANSION_WRATH_OF_THE_LICH_KING && cls == CLASS_DEATH_KNIGHT)
+    // only the race/class pairs the client's character creation offers (CharBaseInfo): the world
+    // database's playercreateinfo still lists every retail combination
+    if (!sDB2Manager.GetCharBaseInfo(Races(race), Classes(cls)))
+        return false;
+
+    // skip expansion races if not playing with expansion
+    if (expansion < EXPANSION_THE_BURNING_CRUSADE && (race == RACE_BLOODELF || race == RACE_DRAENEI))
         return false;
 
     PlayerInfo const* info = sObjectMgr->GetPlayerInfo(race, cls);
@@ -108,21 +114,24 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
     TC_LOG_DEBUG("playerbots", "Creating a new random bot for class: {}", cls);
 
     const bool alliance = static_cast<bool>(urand(0, 1));
+    Trinity::RaceMask<uint64> const disabledRaces{ sWorld->GetUInt64Config(CONFIG_CHARACTER_CREATING_DISABLED_RACEMASK) };
 
     std::vector<uint8> raceOptions;
-    for (uint8 race = RACE_HUMAN; race < sChrRacesStore.GetNumRows(); ++race)
+    for (ChrRacesEntry const* raceEntry : sChrRacesStore)
     {
+        uint8 const race = uint8(raceEntry->ID);
+
         // skip disabled with config races (the race mask is a 64-bit world config in 12.x)
-        if ((uint64(1) << (race - 1)) & sWorld->GetUInt64Config(CONFIG_CHARACTER_CREATING_DISABLED_RACEMASK))
+        if (disabledRaces.HasRace(race))
             continue;
 
         // Try to get 50/50 faction distribution for random bot population balance.
         // Without this check, races from the faction with more class options would dominate.
-        if (alliance == IsAlliance(race))
-        {
-            if (IsValidRaceClassCombination(race, cls, sWorld->getIntConfig(CONFIG_EXPANSION)))
-                raceOptions.push_back(race);
-        }
+        if (Player::TeamIdForRace(race) != (alliance ? TEAM_ALLIANCE : TEAM_HORDE))
+            continue;
+
+        if (IsValidRaceClassCombination(race, cls, sWorld->getIntConfig(CONFIG_EXPANSION)))
+            raceOptions.push_back(race);
     }
 
     if (raceOptions.empty())
@@ -210,9 +219,6 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
 
     player->setCinematic(2);
     player->SetAtLoginFlag(AT_LOGIN_NONE);
-
-    // 1.60 has no death knight, so the 3.3.5 Ebon Hold teleport spell (50977) is not taught.
-
 
     TC_LOG_DEBUG("playerbots", "Random bot created - name: \"{}\", race: {}, class: {}",
             name.c_str(), race, cls);
@@ -363,26 +369,22 @@ uint32 RandomPlayerbotFactory::CalculateTotalAccountCount()
     {
         if (sPlayerbotAIConfig.MaxRandomBots == 0)
         {
-            PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_UPD_ACCOUNT_TYPE_UNASSIGN);
-            PlayerbotSetData(stmt, 0, uint8(1));
-            PlayerbotsDatabase.DirectExecute(stmt);
+            CharacterDatabase.DirectPExecute("UPDATE playerbots_account_type SET account_type = 0 WHERE account_type = {}", uint8(1));
             TC_LOG_INFO("playerbots", "MaxRandomBots set to 0, any RNDbot accounts (type 1) will be unassigned (type 0)");
         }
         if (sPlayerbotAIConfig.AddClassAccountPoolSize == 0)
         {
-            PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_UPD_ACCOUNT_TYPE_UNASSIGN);
-            PlayerbotSetData(stmt, 0, uint8(2));
-            PlayerbotsDatabase.DirectExecute(stmt);
+            CharacterDatabase.DirectPExecute("UPDATE playerbots_account_type SET account_type = 0 WHERE account_type = {}", uint8(2));
             TC_LOG_INFO("playerbots", "AddClassAccountPoolSize set to 0, any AddClass accounts (type 2) will be unassigned (type 0)");
         }
 
         // Wait for DB to reflect the change, up to 1 second max. This is needed to make sure other logs don't show wrong info
         for (int waited = 0; waited < 1000; waited += 50)
         {
-            PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_ACCOUNT_TYPE_COUNT_BY_TYPES);
-            PlayerbotSetData(stmt, 0, int32(sPlayerbotAIConfig.MaxRandomBots == 0 ? 1 : -1));
-            PlayerbotSetData(stmt, 1, int32(sPlayerbotAIConfig.AddClassAccountPoolSize == 0 ? 2 : -1));
-            PreparedQueryResult res = PlayerbotsDatabase.Query(stmt);
+            QueryResult res = CharacterDatabase.PQuery(
+                "SELECT COUNT(*) FROM playerbots_account_type WHERE account_type IN ({}, {})",
+                int32(sPlayerbotAIConfig.MaxRandomBots == 0 ? 1 : -1),
+                int32(sPlayerbotAIConfig.AddClassAccountPoolSize == 0 ? 2 : -1));
 
             if (!res || PlayerbotFieldGet<uint64>(res->Fetch()[0]) == 0)
                 break;
@@ -396,8 +398,8 @@ uint32 RandomPlayerbotFactory::CalculateTotalAccountCount()
     uint32 existingAddClassAccounts = 0;
     uint32 existingUnassignedAccounts = 0;
 
-    PlayerbotsDatabasePreparedStatement* typeStmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_ACCOUNT_TYPE_COUNT_BY_TYPE);
-    PreparedQueryResult typeCheck = PlayerbotsDatabase.Query(typeStmt);
+    QueryResult typeCheck = CharacterDatabase.Query(
+        "SELECT account_type, COUNT(*) FROM playerbots_account_type GROUP BY account_type");
     if (typeCheck)
     {
         do
@@ -412,7 +414,7 @@ uint32 RandomPlayerbotFactory::CalculateTotalAccountCount()
         } while (typeCheck->NextRow());
     }
 
-    // Determine divisor based on Death Knight availability and requested A&H faction ratio
+    // Determine divisor based on the requested A&H faction ratio
     int divisor = CalculateAvailableCharsPerAccount();
 
     // Calculate max bots
@@ -472,10 +474,7 @@ uint32 RandomPlayerbotFactory::CalculateTotalAccountCount()
 
 uint32 RandomPlayerbotFactory::CalculateAvailableCharsPerAccount()
 {
-    // Death Knight availability according to their login eligibility, and if WotLK is enabled at all.
-    bool noDK = sPlayerbotAIConfig.DisableDeathKnightLogin || sWorld->getIntConfig(CONFIG_EXPANSION) != EXPANSION_WRATH_OF_THE_LICH_KING;
-
-    uint32 availableChars = noDK ? 9 : 10;
+    uint32 availableChars = 9;
 
     uint32 hordeRatio = sPlayerbotAIConfig.RandomBotHordeRatio;
     uint32 allianceRatio = sPlayerbotAIConfig.RandomBotAllianceRatio;
@@ -527,8 +526,8 @@ void RandomPlayerbotFactory::CreateRandomBots()
 
         // First execute all the cleanup SQL commands
         // Clear playerbots_random_bots and playerbots_account_type
-        PlayerbotsDatabase.DirectExecute(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_RANDOM_BOTS));
-        PlayerbotsDatabase.DirectExecute(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_ACCOUNT_TYPE));
+        CharacterDatabase.DirectExecute("DELETE FROM playerbots_random_bots");
+        CharacterDatabase.DirectExecute("DELETE FROM playerbots_account_type");
 
         // Get the character database name dynamically (used in same-server subqueries below)
         std::string characterDBName = CharacterDatabase.GetConnectionInfo()->database;
@@ -562,19 +561,16 @@ void RandomPlayerbotFactory::CreateRandomBots()
         std::this_thread::sleep_for(std::chrono::milliseconds(100));    // Extra 100ms fixed delay for safety.
 
         // Clean up orphaned entries in playerbots_guild_tasks
-        PlayerbotsDatabase.DirectExecute(("DELETE FROM playerbots_guild_tasks WHERE owner NOT IN (SELECT guid FROM " + characterDBName + ".characters)").c_str());
+        CharacterDatabase.DirectExecute(("DELETE FROM playerbots_guild_tasks WHERE owner NOT IN (SELECT guid FROM " + characterDBName + ".characters)").c_str());
 
         // Clean up orphaned entries in playerbots_db_store (explicit id list, no cross-database subquery)
-        PlayerbotsDatabase.DirectExecute(("DELETE FROM playerbots_db_store WHERE guid NOT IN (SELECT guid FROM " + characterDBName + ".characters WHERE account NOT IN (" + botAccountIds + "))").c_str());
+        CharacterDatabase.DirectExecute(("DELETE FROM playerbots_db_store WHERE guid NOT IN (SELECT guid FROM " + characterDBName + ".characters WHERE account NOT IN (" + botAccountIds + "))").c_str());
 
         // Clean up orphaned records in character-related tables
-        CharacterDatabase.PExecute("DELETE FROM arena_team_member WHERE guid NOT IN (SELECT guid FROM characters)");
-        CharacterDatabase.PExecute("DELETE FROM arena_team WHERE arenaTeamId NOT IN (SELECT arenaTeamId FROM arena_team_member)");
         CharacterDatabase.PExecute("DELETE FROM character_account_data WHERE guid NOT IN (SELECT guid FROM characters)");
         CharacterDatabase.PExecute("DELETE FROM character_achievement WHERE guid NOT IN (SELECT guid FROM characters)");
         CharacterDatabase.PExecute("DELETE FROM character_achievement_progress WHERE guid NOT IN (SELECT guid FROM characters)");
         CharacterDatabase.PExecute("DELETE FROM character_action WHERE guid NOT IN (SELECT guid FROM characters)");
-        CharacterDatabase.PExecute("DELETE FROM character_arena_stats WHERE guid NOT IN (SELECT guid FROM characters)");
         CharacterDatabase.PExecute("DELETE FROM character_aura WHERE guid NOT IN (SELECT guid FROM characters)");
         // 12.x has no character_entry_point table (the 3.3.5 per-character entry point was dropped).
         CharacterDatabase.PExecute("DELETE FROM character_glyphs WHERE guid NOT IN (SELECT guid FROM characters)");
@@ -640,7 +636,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
         CharacterDatabase.PExecute("COMMIT");
 
         // Wait for all pending database operations to complete
-        while (LoginDatabase.QueueSize() || CharacterDatabase.QueueSize() || PlayerbotsDatabase.QueueSize())
+        while (LoginDatabase.QueueSize() || CharacterDatabase.QueueSize() || WorldDatabase.QueueSize())
         {
             std::this_thread::sleep_for(1s);
         }
@@ -649,7 +645,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
         // Flush tables to ensure all data in memory are written to disk
         LoginDatabase.PExecute("FLUSH TABLES");
         CharacterDatabase.PExecute("FLUSH TABLES");
-        PlayerbotsDatabase.DirectExecute("FLUSH TABLES");
+        CharacterDatabase.DirectExecute("FLUSH TABLES");
 
         TC_LOG_INFO("playerbots", ">> Random bot accounts and data deleted in {} ms", GetMSTimeDiffToNow(timer));
         TC_LOG_INFO("playerbots", "Please reset the Playerbots.DeleteRandomBotAccounts to 0 and restart the server...");

@@ -212,27 +212,6 @@ bool RpgHomeBindTrigger::IsActive()
     return true;
 }
 
-bool RpgQueueBGTrigger::IsActive()
-{
-    // skip bots not in continents
-    if (!WorldPosition(bot).isOverworld())  // bg, raid, dungeon
-        return false;
-
-    GuidPosition guidP(getGuidP());
-
-    if (!guidP.IsCreature())
-        return false;
-
-    // if bot is not leader disallow tag bg
-    if (bot->GetGroup() && !bot->GetGroup()->IsLeader(bot->GetGUID()))
-        return false;
-
-    if (AI_VALUE(BattlegroundTypeId, "rpg bg type") == BATTLEGROUND_TYPE_NONE)
-        return false;
-
-    return true;
-}
-
 bool RpgBuyPetitionTrigger::IsActive()
 {
     GuidPosition guidP(getGuidP());

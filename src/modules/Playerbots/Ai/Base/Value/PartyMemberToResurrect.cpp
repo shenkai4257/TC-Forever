@@ -15,9 +15,9 @@ public:
     {
         for (uint8 i = 0; i < 3; ++i)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_RESURRECT ||
-                spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_RESURRECT_NEW ||
-                spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_SELF_RESURRECT)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_RESURRECT ||
+                GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_RESURRECT_NEW ||
+                GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_SELF_RESURRECT)
                 return true;
         }
 

@@ -5,16 +5,15 @@
  */
 
 #include "PlayerbotRepository.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "AiObjectContext.h"
 
 void PlayerbotRepository::Load(PlayerbotAI* botAI)
 {
     ObjectGuid::LowType guid = botAI->GetBot()->GetGUID().GetCounter();
 
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_DB_STORE);
-    PlayerbotSetData(stmt, 0, guid);
-    if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
+    if (QueryResult result = CharacterDatabase.PQuery("SELECT `key`,`value` FROM `playerbots_db_store` WHERE `guid` = {}", guid))
     {
         std::vector<std::string> values;
         do
@@ -51,12 +50,9 @@ void PlayerbotRepository::Save(PlayerbotAI* botAI)
 {
     ObjectGuid::LowType guid = botAI->GetBot()->GetGUID().GetCounter();
 
-    PlayerbotsDatabaseTransaction trans = PlayerbotsDatabase.BeginTransaction();
+    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 
-    PlayerbotsDatabasePreparedStatement* deleteStatement =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_DB_STORE);
-    PlayerbotSetData(deleteStatement, 0, guid);
-    trans->Append(deleteStatement);
+    trans->Append(Trinity::StringFormat("DELETE FROM `playerbots_db_store` WHERE `guid` = {}", guid).c_str());
 
     std::vector<std::string> data = botAI->GetAiObjectContext()->Save();
     for (std::vector<std::string>::iterator i = data.begin(); i != data.end(); ++i)
@@ -68,7 +64,7 @@ void PlayerbotRepository::Save(PlayerbotAI* botAI)
     SaveValue(trans, guid, "nc", FormatStrategies("nc", botAI->GetStrategies(BOT_STATE_NON_COMBAT)));
     SaveValue(trans, guid, "dead", FormatStrategies("dead", botAI->GetStrategies(BOT_STATE_DEAD)));
 
-    PlayerbotsDatabase.DirectCommitTransaction(trans);
+    CharacterDatabase.DirectCommitTransaction(trans);
 }
 
 std::string const PlayerbotRepository::FormatStrategies(std::string const /*type*/, std::vector<std::string> strategies)
@@ -85,17 +81,17 @@ void PlayerbotRepository::Reset(PlayerbotAI* botAI)
 {
     ObjectGuid::LowType guid = botAI->GetBot()->GetGUID().GetCounter();
 
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_DB_STORE);
-    PlayerbotSetData(stmt, 0, guid);
-    PlayerbotsDatabase.DirectExecute(stmt);
+    CharacterDatabase.DirectPExecute("DELETE FROM `playerbots_db_store` WHERE `guid` = {}", guid);
 }
 
-void PlayerbotRepository::SaveValue(PlayerbotsDatabaseTransaction trans, uint32 guid, std::string const key,
+void PlayerbotRepository::SaveValue(CharacterDatabaseTransaction trans, uint32 guid, std::string const key,
                                     std::string const value)
 {
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_INS_DB_STORE);
-    PlayerbotSetData(stmt, 0, guid);
-    PlayerbotSetData(stmt, 1, key);
-    PlayerbotSetData(stmt, 2, value);
-    trans->Append(stmt);
+    std::string escapedKey = key;
+    std::string escapedValue = value;
+    CharacterDatabase.EscapeString(escapedKey);
+    CharacterDatabase.EscapeString(escapedValue);
+
+    trans->Append(Trinity::StringFormat("INSERT INTO `playerbots_db_store` (`guid`, `key`, `value`) VALUES ({}, '{}', '{}')",
+                                        guid, escapedKey, escapedValue).c_str());
 }

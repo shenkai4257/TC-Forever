@@ -6,43 +6,18 @@
 
 #include "ChooseTargetActions.h"
 
-#include "Battleground.h"
 #include "ChooseRpgTargetAction.h"
 #include "Event.h"
 #include "LootObjectStack.h"
 #include "NewRpgStrategy.h"
 #include "Playerbots.h"
 #include "PossibleRpgTargetsValue.h"
-#include "PvpTriggers.h"
-#include "PvpValues.h"
 #include "RtiTargetValue.h"
 #include "ServerFacade.h"
 
 bool AttackEnemyPlayerAction::isUseful()
 {
-    if (PlayerHasFlag::IsCapturingFlag(bot))
-        return false;
-
     return !sPlayerbotAIConfig.IsPvpProhibited(bot->GetZoneId(), bot->GetAreaId());
-}
-
-bool AttackEnemyFlagCarrierAction::isUseful()
-{
-    Unit* target = context->GetValue<Unit*>("enemy flag carrier")->Get();
-    Battleground* bg = bot->GetBattleground();
-    if (bg && bg->GetTypeID() == BATTLEGROUND_WS)
-    {
-        if (botAI->GetState() == BOT_STATE_COMBAT && AI_VALUE(Unit*, "current target") == target)
-            return false;
-        // A queued action can outlive the trigger that selected the carrier.
-        return CanRespondToWsgCarrier(botAI, target);
-    }
-
-    if (!target || !ServerFacade::instance().IsDistanceLessOrEqualThan(
-                       ServerFacade::instance().GetDistance2d(bot, target), 100.0f))
-        return false;
-
-    return PlayerHasFlag::IsCapturingFlag(bot);
 }
 
 bool AggressiveTargetAction::isUseful()
@@ -184,9 +159,6 @@ bool AttackAnythingAction::isPossible() { return GetTarget() && AttackAction::is
 
 bool DpsAssistAction::isUseful()
 {
-    if (PlayerHasFlag::IsCapturingFlag(bot))
-        return false;
-
     return true;
 }
 

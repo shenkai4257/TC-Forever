@@ -40,7 +40,7 @@ bool XpGainAction::Execute(Event event)
         BroadcastHelper::BroadcastKill(botAI, bot, creature);
     }
 
-    // randomBotXPRate is now implemented in OnPlayerGiveXP script
+    // randomBotXPRate is now implemented in the OnGiveXP script
     // if (!sRandomPlayerbotMgr.IsRandomBot(bot) || sPlayerbotAIConfig.RandomBotXPRate == 1)
     //     return true;
 

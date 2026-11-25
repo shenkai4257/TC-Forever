@@ -5,7 +5,8 @@
  */
 
 #include "CustomStrategyEditAction.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "CustomStrategy.h"
 #include "Event.h"
 #include "Playerbots.h"
@@ -36,10 +37,7 @@ bool CustomStrategyEditAction::PrintHelp()
 
     uint32 owner = botAI->GetBot()->GetGUID().GetCounter();
 
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_CUSTOM_STRATEGY_BY_OWNER);
-    PlayerbotSetData(stmt, 0, owner);
-    if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
+    if (QueryResult result = CharacterDatabase.PQuery("SELECT DISTINCT name FROM playerbots_custom_strategy WHERE owner = {}", owner))
     {
         do
         {
@@ -61,11 +59,11 @@ bool CustomStrategyEditAction::Print(std::string const name)
 
     uint32 owner = botAI->GetBot()->GetGUID().GetCounter();
 
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_CUSTOM_STRATEGY_BY_OWNER_AND_NAME);
-    PlayerbotSetData(stmt, 0, owner);
-    PlayerbotSetData(stmt, 1, name);
-    if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
+    std::string escapedName = name;
+    CharacterDatabase.EscapeString(escapedName);
+    if (QueryResult result = CharacterDatabase.PQuery(
+            "SELECT idx, action_line FROM playerbots_custom_strategy WHERE owner = {} AND name = '{}' ORDER BY idx",
+            owner, escapedName))
     {
         do
         {
@@ -84,39 +82,29 @@ bool CustomStrategyEditAction::Edit(std::string const name, uint32 idx, std::str
 {
     uint32 owner = botAI->GetBot()->GetGUID().GetCounter();
 
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_CUSTOM_STRATEGY_BY_OWNER_AND_NAME_AND_IDX);
-    PlayerbotSetData(stmt, 0, owner);
-    PlayerbotSetData(stmt, 1, name);
-    PlayerbotSetData(stmt, 2, idx);
-    if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
+    std::string escapedName = name;
+    std::string escapedCommand = command;
+    CharacterDatabase.EscapeString(escapedName);
+    CharacterDatabase.EscapeString(escapedCommand);
+
+    if (QueryResult result = CharacterDatabase.PQuery(
+            "SELECT action_line FROM playerbots_custom_strategy WHERE owner = {} AND name = '{}' AND idx = {}",
+            owner, escapedName, idx))
     {
         if (command.empty())
-        {
-            stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_CUSTOM_STRATEGY);
-            PlayerbotSetData(stmt, 0, name);
-            PlayerbotSetData(stmt, 1, owner);
-            PlayerbotSetData(stmt, 2, idx);
-            PlayerbotsDatabase.DirectExecute(stmt);
-        }
+            CharacterDatabase.DirectPExecute(
+                "DELETE FROM playerbots_custom_strategy WHERE name = '{}' AND owner = {} AND idx = {}",
+                escapedName, owner, idx);
         else
-        {
-            stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_UPD_CUSTOM_STRATEGY);
-            PlayerbotSetData(stmt, 0, command);
-            PlayerbotSetData(stmt, 1, name);
-            PlayerbotSetData(stmt, 2, owner);
-            PlayerbotSetData(stmt, 3, idx);
-            PlayerbotsDatabase.DirectExecute(stmt);
-        }
+            CharacterDatabase.DirectPExecute(
+                "UPDATE playerbots_custom_strategy SET action_line = '{}' WHERE name = '{}' AND owner = {} AND idx = {}",
+                escapedCommand, escapedName, owner, idx);
     }
     else
     {
-        stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_INS_CUSTOM_STRATEGY);
-        PlayerbotSetData(stmt, 0, name);
-        PlayerbotSetData(stmt, 1, owner);
-        PlayerbotSetData(stmt, 2, idx);
-        PlayerbotSetData(stmt, 3, command);
-        PlayerbotsDatabase.DirectExecute(stmt);
+        CharacterDatabase.DirectPExecute(
+            "INSERT INTO playerbots_custom_strategy (name, owner, idx, action_line) VALUES ('{}', {}, {}, '{}')",
+            escapedName, owner, idx, escapedCommand);
     }
 
     PrintActionLine(idx, command);

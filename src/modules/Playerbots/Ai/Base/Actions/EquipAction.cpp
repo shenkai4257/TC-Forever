@@ -12,6 +12,7 @@
 #include "ItemPackets.h"
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
+#include "PacketOperators.h"
 #include "Playerbots.h"
 #include "StatsWeightCalculator.h"
 #include <utility>
@@ -344,7 +345,6 @@ ItemIds EquipAction::SelectInventoryItemsToEquip()
         if (!itemTemplate)
             continue;
 
-        //TODO Expand to Glyphs and Gems, that can be placed in equipment
         //Pre-filter non-equipable items
         if (itemTemplate->GetInventoryType() == INVTYPE_NON_EQUIP)
             continue;
@@ -371,32 +371,32 @@ bool EquipUpgradesPacketAction::Execute(Event event)
     std::string const source = event.GetSource();
     if (source == "trade status")
     {
+        // 12.x packs the header: 1 bit bnet-account flag, then 5 bit status
         WorldPacket p(event.getPacket());
         p.rpos(0);
-        uint32 status;
-        p >> status;
+        uint8 header = 0;
+        p >> WorldPackets::Bits<6>(header);
+        uint8 const status = header & 0x1F;
 
-        if (status != TRADE_STATUS_ACCEPTED)
+        // the goods only change hands once the trade completes
+        if (status != TRADE_STATUS_COMPLETE)
             return false;
     }
 
     else if (source == "item push result")
     {
+        // 12.x layout (WorldPackets::Item::ItemPushResult::Write): player, slot, slot in bag, the item
+        // instance, ...
         WorldPacket p(event.getPacket());
         p.rpos(0);
         ObjectGuid playerGuid;
-        uint32 received, created, sendChatMessage, itemSlot, itemId;
-        uint8 bagSlot;
-
         p >> playerGuid;
-        p >> received;
-        p >> created;
-        p >> sendChatMessage;
-        p >> bagSlot;
-        p >> itemSlot;
-        p >> itemId;
+        p.read_skip<uint8_t>();          // Slot
+        p.read_skip<int32_t>();          // SlotInBag
+        WorldPackets::Item::ItemInstance itemInstance;
+        p >> itemInstance;
 
-        ItemTemplate const* item = sObjectMgr->GetItemTemplate(itemId);
+        ItemTemplate const* item = sObjectMgr->GetItemTemplate(itemInstance.ItemID);
         if (!item || item->GetInventoryType() == INVTYPE_NON_EQUIP)
             return false;
     }

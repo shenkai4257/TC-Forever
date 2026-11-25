@@ -204,14 +204,6 @@ void StealthedRogueStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     );
     triggers.push_back(
         new TriggerNode(
-            "enemy flagcarrier near",
-            {
-                NextAction("sprint", ACTION_EMERGENCY + 1)
-            }
-        )
-    );
-    triggers.push_back(
-        new TriggerNode(
             "unstealth",
             {
                 NextAction("unstealth", ACTION_NORMAL)

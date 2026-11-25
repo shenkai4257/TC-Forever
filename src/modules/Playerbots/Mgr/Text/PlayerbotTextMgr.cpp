@@ -6,7 +6,8 @@
 
 #include "PlayerbotTextMgr.h"
 #include "FieldHelper.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "DatabaseEnv.h"
 #include "LocaleColumns.h"
 #include "QueryResult.h"    // Required due to a poor implementation by AC
@@ -42,7 +43,7 @@ void PlayerbotTextMgr::LoadBotTexts()
 
     // `text` holds enUS; fields[4 + k] holds localeColumns[k]
     std::vector<LocaleColumn> const localeColumns = GetLocaleColumns(
-        PlayerbotsDatabase, "ai_playerbot_texts",
+        WorldDatabase, "ai_playerbot_texts",
         [](LocaleConstant locale) { return Trinity::StringFormat("text_loc{}", static_cast<uint32>(locale)); });
 
     std::string sql = "SELECT `name`, `text`, `say_type`, `reply_type`";
@@ -51,7 +52,7 @@ void PlayerbotTextMgr::LoadBotTexts()
     sql += " FROM `ai_playerbot_texts`";
 
     uint32 count = 0;
-    if (QueryResult result = PlayerbotsDatabase.Query(sql.c_str()))
+    if (QueryResult result = WorldDatabase.Query(sql.c_str()))
     {
         do
         {
@@ -76,8 +77,7 @@ void PlayerbotTextMgr::LoadBotTextChance()
 {
     if (botTextChance.empty())
     {
-        PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_TEXT_CHANCE);
-        PreparedQueryResult results = PlayerbotsDatabase.Query(stmt);
+        QueryResult results = WorldDatabase.Query("SELECT name, probability FROM ai_playerbot_texts_chance");
         if (results)
         {
             do

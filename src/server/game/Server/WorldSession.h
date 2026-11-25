@@ -1110,10 +1110,6 @@ class TC_GAME_API WorldSession
         bool DisallowHyperlinksAndMaybeKick(std::string const& str);
 
         void QueuePacket(WorldPacket&& new_packet);
-        // Pops the next packet from the receive queue (or null when empty). Server-driven sessions
-        // that inject CMSGs via QueuePacket drain them here; the regular Update path only consumes
-        // the queue when a socket is present.
-        std::unique_ptr<WorldPacket> NextQueuedPacket();
         bool Update(uint32 diff, PacketFilter& updater);
 
         /// Handle the authentication waiting queue (to be completed)

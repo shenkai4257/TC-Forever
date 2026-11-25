@@ -207,10 +207,9 @@ bool MaintenanceAction::Execute(Event /*event*/)
         // The spell passes above learn the riding line's own spells, which rewrite skill 762 through
         // AddSpell from the 3.3.5 skill_tiers table; the tier is re-asserted here.
         factory.InitRiding();
-        factory.InitGlyphs(false);
         factory.InitKeyring();
         if (bot->GetLevel() >= sPlayerbotAIConfig.MinEnchantingBotLevel)
-            factory.ApplyEnchantAndGemsNew();
+            factory.ApplyEnchants();
     }
     else
     {
@@ -265,15 +264,12 @@ bool MaintenanceAction::Execute(Event /*event*/)
         // Whatever of the above ran, the riding tier is written last: the spell passes rewrite 762.
         factory.InitRiding();
 
-        if (sPlayerbotAIConfig.AltMaintenanceGlyphs)
-            factory.InitGlyphs(false);
-
         if (sPlayerbotAIConfig.AltMaintenanceKeyring)
             factory.InitKeyring();
 
-        if (sPlayerbotAIConfig.AltMaintenanceGemsEnchants &&
+        if (sPlayerbotAIConfig.AltMaintenanceEnchants &&
             bot->GetLevel() >= sPlayerbotAIConfig.MinEnchantingBotLevel)
-            factory.ApplyEnchantAndGemsNew();
+            factory.ApplyEnchants();
     }
 
     bot->DurabilityRepairAll(false, 1.0f, false);
@@ -520,7 +516,7 @@ bool BisGearAction::Execute(Event event)
     PlayerbotFactory factory(bot, bot->GetLevel(), ITEM_QUALITY_EPIC, 0);
     factory.InitAmmo();
     if (bot->GetLevel() >= sPlayerbotAIConfig.MinEnchantingBotLevel)
-        factory.ApplyEnchantAndGemsNew();
+        factory.ApplyEnchants();
 
     bot->DurabilityRepairAll(false, 1.0f, false);
 

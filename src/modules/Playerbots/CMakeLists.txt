@@ -16,8 +16,7 @@ file(GLOB_RECURSE PRIVATE_SOURCES
   ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
 
-# Classic battlegrounds (AV/WSG/AB) are kept; arena and the other battlegrounds were
-# removed from the content, so the PvP layers compile against the scripted BG data.
+# Battlegrounds and arena are not part of the module (the battleground layer is to be rewritten).
 # Talentspec: the 3.3.5 three-tree talent stack (premade spec links) — not portable to the 1.6x
 # trait-config system. ChangeTalentsAction was rewritten for the classic talent walk instead.
 list(FILTER PRIVATE_SOURCES EXCLUDE REGEX "Talentspec\\.(cpp|h)$")

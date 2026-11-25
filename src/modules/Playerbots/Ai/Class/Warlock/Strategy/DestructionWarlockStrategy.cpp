@@ -84,15 +84,7 @@ void DestructionWarlockStrategy::InitTriggers(std::vector<TriggerNode*>& trigger
         )
     );
 
-    // Life Tap glyph buff, and Life Tap as filler
-    triggers.push_back(
-        new TriggerNode(
-            "life tap glyph buff",
-            {
-                NextAction("life tap", 29.5f)
-            }
-        )
-    );
+    // Life Tap as filler
     triggers.push_back(
         new TriggerNode(
             "life tap",

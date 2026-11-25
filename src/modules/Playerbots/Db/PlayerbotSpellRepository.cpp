@@ -12,13 +12,13 @@
 #include "Field.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "PlayerbotCompat.h"
 #include "QueryResult.h"  // Required due to a poor implementation by AC
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 
 #include <algorithm>
 #include <array>
-#include <cstdio>
 #include <utility>
 
 static constexpr uint32 SPELL_APPRENTICE_RIDING = 33388;
@@ -90,54 +90,6 @@ void PlayerbotSpellRepository::Initialize()
 
     InitTradeSkillLinks(abilitiesBySkill);
 
-    // TEMP 1.60 skill dump for fitting the class rotations (remove once the APLs are written).
-    // The 12.x client data has no all-spell iterator, so the skill-line cache above is the complete
-    // list of the spells the client knows: one line per spell with its skill line and category.
-    if (FILE* dump = fopen("/home/shenk/tools/backups/spell_dump_160.tsv", "w"))
-    {
-        for (auto const& [spellId, ability] : skillSpells)
-        {
-            SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId, DIFFICULTY_NONE);
-            if (!spellInfo || !spellInfo->SpellName)
-                continue;
-
-            // The 1.60 zhCN client leaves Str[LOCALE_enUS] empty for many spells, and that is the
-            // locale SpellIdValue matches action names against: dump both so the missing English
-            // names show up here instead of as silently dead actions.
-            char const* en = spellInfo->SpellName->Str[LOCALE_enUS];
-            char const* zh = spellInfo->SpellName->Str[LOCALE_zhCN];
-            if ((!en || !*en) && (!zh || !*zh))
-                continue;
-
-            SkillLineEntry const* line = sSkillLineStore.LookupEntry(ability->SkillLine);
-            fprintf(dump, "%u\t%u\t%d\t%s\t%s\n", spellId, uint32(ability->SkillLine),
-                    line ? int32(line->CategoryID) : -1, en ? en : "", zh ? zh : "");
-        }
-        fclose(dump);
-        TC_LOG_INFO("playerbots", "1.60 spell dump written to /home/shenk/tools/backups/spell_dump_160.tsv");
-    }
-
-    // 1.60 action-name table (see GetSpellIdByName): the zhCN client data carries almost no enUS
-    // spell names, so the English names the strategies use are mapped to their lowest-rank ids here
-    // and SpellIdValue walks the chain up to the rank the bot actually holds. Warrior first; the
-    // other classes are filled in as their rotation is fitted.
-    static constexpr std::pair<char const*, uint32> ACTION_SPELL_IDS[] = {
-        {"heroic strike", 78},       {"charge", 100},         {"rend", 772},          {"thunder clap", 6343},
-        {"hamstring", 1715},         {"pummel", 6552},        {"overpower", 7384},    {"execute", 5308},
-        {"slam", 1464},              {"whirlwind", 1680},     {"cleave", 845},        {"sunder armor", 7386},
-        {"mocking blow", 694},       {"battle shout", 5242},  {"demoralizing shout", 1160}, {"challenging shout", 1161},
-        {"intimidating shout", 5246},{"berserker rage", 18499},{"bloodrage", 2687},   {"shield bash", 72},
-        {"shield block", 2565},      {"shield wall", 871},    {"shield slam", 23922}, {"revenge", 6572},
-        {"disarm", 676},             {"taunt", 355},          {"intercept", 20252},   {"retaliation", 20230},
-        {"recklessness", 1719},      {"death wish", 12328},   {"sweeping strikes", 12292}, {"mortal strike", 12294},
-        {"bloodthirst", 23881},      {"concussion blow", 12809}, {"piercing howl", 12323}, {"victory rush", 402927},
-        {"enraged regeneration", 402913}, {"shockwave", 440488}, {"devastate", 403196}, {"commanding shout", 403215},
-        {"last stand", 12975},       {"battle stance", 2457}, {"defensive stance", 71}, {"berserker stance", 2458},
-    };
-    _spellIdByName.clear();
-    for (auto const& [name, spellId] : ACTION_SPELL_IDS)
-        _spellIdByName.emplace(name, spellId);
-
     // 12.x exposes no "all spells" iterator; opening and skinning spells are always taught
     // through a skill line, so walk the skill-line spell cache built above instead.
     for (auto const& [spellId, ability] : skillSpells)
@@ -193,7 +145,7 @@ void PlayerbotSpellRepository::InitTradeSkillLinks(
         {
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(ability->Spell, DIFFICULTY_NONE);
             if (!data.tradeSpellId && spellInfo && !spellInfo->GetEffects().empty() &&
-                spellInfo->GetEffectOrDefault(EFFECT_0).Effect == SPELL_EFFECT_TRADE_SKILL)
+                GetEffectOrDefault(spellInfo, EFFECT_0).Effect == SPELL_EFFECT_TRADE_SKILL)
                 data.tradeSpellId = ability->Spell;
 
             bool bindOnPickup = false;
@@ -223,12 +175,6 @@ TradeSkillLinkData const* PlayerbotSpellRepository::GetTradeSkillLinkData(uint32
 {
     auto const itr = _tradeSkillLinks.find(skillId);
     return itr != _tradeSkillLinks.end() ? &itr->second : nullptr;
-}
-
-uint32 PlayerbotSpellRepository::GetSpellIdByName(std::string const& name) const
-{
-    auto const itr = _spellIdByName.find(name);
-    return itr != _spellIdByName.end() ? itr->second : 0;
 }
 
 SkillLineAbilityEntry const* PlayerbotSpellRepository::GetSkillLine(uint32 spellId) const

@@ -65,15 +65,15 @@ GuidVector NearestTrapWithDamageValue::Calculate()
         }
         for (int i = 0; i < int(spellInfo->GetEffects().size()); i++)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_APPLY_AURA)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_APPLY_AURA)
             {
-                if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).ApplyAuraName == SPELL_AURA_PERIODIC_DAMAGE)
+                if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).ApplyAuraName == SPELL_AURA_PERIODIC_DAMAGE)
                 {
                     result.push_back(go->GetGUID());
                     break;
                 }
             }
-            else if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_SCHOOL_DAMAGE)
+            else if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_SCHOOL_DAMAGE)
             {
                 result.push_back(go->GetGUID());
                 break;

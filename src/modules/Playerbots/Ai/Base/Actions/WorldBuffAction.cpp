@@ -59,18 +59,6 @@ std::vector<uint32> WorldBuffAction::NeedWorldBuffs(Unit* unit)
         // If bear, effectiveSpec remains 1
     }
 
-    // If this is a Death Knight in the Blood tab, decide Tank vs. DPS
-    if (botClass == CLASS_DEATH_KNIGHT && tab == 0)  // 0 = Blood
-    {
-        bool isTank = bot->HasTalent(55226, 0); // Blade Barrier rank 5
-        if (!isTank)
-        {
-            // If not tank, then treat it as DPS spec = 3
-            effectiveSpec = 3;
-        }
-        // If tank, effectiveSpec remains unchanged
-    }
-
     for (auto const& wb : sPlayerbotAIConfig.WorldBuffs)
     {
         // Faction check

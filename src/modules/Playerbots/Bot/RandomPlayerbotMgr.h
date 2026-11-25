@@ -19,62 +19,6 @@
 #include <set>
 #include <unordered_set>
 
-struct BattlegroundInfo
-{
-    std::vector<uint32> bgInstances;
-    std::vector<uint32> ratedArenaInstances;
-    std::vector<uint32> skirmishArenaInstances;
-    uint32 bgInstanceCount = 0;
-    uint32 ratedArenaInstanceCount = 0;
-    uint32 skirmishArenaInstanceCount = 0;
-    uint32 minLevel = 0;
-    uint32 maxLevel = 0;
-    uint32 activeRatedArenaQueue = 0;     // 0 = Inactive, 1 = Active
-    uint32 activeSkirmishArenaQueue = 0;  // 0 = Inactive, 1 = Active
-    uint32 activeBgQueue = 0;             // 0 = Inactive, 1 = Active
-
-    // Bots (Arena)
-    uint32 ratedArenaBotCount = 0;
-    uint32 skirmishArenaBotCount = 0;
-
-    // Bots (Battleground)
-    uint32 bgHordeBotCount = 0;
-    uint32 bgAllianceBotCount = 0;
-
-    // Players (Arena)
-    uint32 ratedArenaPlayerCount = 0;
-    uint32 skirmishArenaPlayerCount = 0;
-
-    // Players (Battleground)
-    uint32 bgHordePlayerCount = 0;
-    uint32 bgAlliancePlayerCount = 0;
-
-    std::vector<uint32> bgPlayerInstances;
-    std::map<uint32, uint32> bgInstanceCapacity;
-    std::map<uint32, std::array<uint32, 2>> bgInstanceBots;
-    uint32 bgAutoJoinTarget = 0;
-
-    uint32 DemandedBgSlotsPerTeam(uint32 queueTeamSize, TeamId team) const
-    {
-        uint32 slots = activeBgQueue * queueTeamSize;
-        uint32 botOnlyCounted = 0;
-        for (auto const& [instanceId, capacity] : bgInstanceCapacity)
-        {
-            if (std::find(bgPlayerInstances.begin(), bgPlayerInstances.end(), instanceId) != bgPlayerInstances.end())
-                slots += capacity;
-            else if (botOnlyCounted < bgAutoJoinTarget)
-            {
-                slots += capacity;
-                ++botOnlyCounted;
-            }
-            // a bot-only instance past the auto-join target only counts the bots it already has
-            else if (auto bots = bgInstanceBots.find(instanceId); bots != bgInstanceBots.end())
-                slots += bots->second[team];
-        }
-        return slots;
-    }
-};
-
 class ChatHandler;
 class PerfMonitorOperation;
 class WorldLocation;
@@ -152,7 +96,6 @@ public:
     Player* GetRandomPlayer();
     std::vector<Player*> GetPlayers() { return players; };
     PlayerBotMap GetAllBots() { return playerBots; };
-    void InitArenaTeams();
     void PrintStats();
     void PrintQuestTotals(NewRpgStatistic const& stats);
     NewRpgStatistic CollectQuestStats();
@@ -179,23 +122,10 @@ public:
     void SetValue(Player* bot, std::string const& type, uint32 value, std::string const& data = "");
     bool IsSpecPvp(uint32 bot, uint8 cls);
     void Remove(Player* bot);
-    ObjectGuid GetBattleMasterGUID(Player* bot, BattlegroundTypeId bgTypeId);
     CreatureData const* GetCreatureDataByEntry(uint32 entry);
-    void LoadBattleMastersCache();
-    std::map<uint64, std::map<uint32, BattlegroundInfo>> BattlegroundData;
     std::map<uint32, std::map<uint32, std::map<TeamId, uint32>>> VisualBots;
     std::map<uint32, std::map<uint32, std::map<uint32, uint32>>> Supporters;
-    std::map<TeamId, std::vector<uint32>> LfgDungeons;
-    void CheckBgQueue();
-    void CheckLfgQueue();
     void CheckPlayers();
-    void LogBattlegroundInfo();
-
-    std::map<TeamId, std::map<BattlegroundTypeId, std::vector<uint32>>> getBattleMastersCache()
-    {
-        return BattleMastersCache;
-    }
-
     float getActivityMod() { return activityMod; }
     float getActivityPercentage() { return activityMod * 100.0f; }
     void setActivityPercentage(float percentage) { activityMod = percentage / 100.0f; }
@@ -223,23 +153,11 @@ private:
             PlayerbotCommandServer::instance().Start();
         }
 
-        BattlegroundData.clear();  // Clear here and here only.
-
         // Cleanup on server start: orphaned pet data that's often left behind by bot pets that no longer exist in the DB
         CharacterDatabase.Execute("DELETE FROM pet_aura WHERE guid NOT IN (SELECT id FROM character_pet)");
         CharacterDatabase.Execute("DELETE FROM pet_spell WHERE guid NOT IN (SELECT id FROM character_pet)");
         CharacterDatabase.Execute("DELETE FROM pet_spell_cooldown WHERE guid NOT IN (SELECT id FROM character_pet)");
 
-        for (int bracket = BG_BRACKET_ID_FIRST; bracket < MAX_BATTLEGROUND_BRACKETS; ++bracket)
-        {
-            for (int queueType = BATTLEGROUND_QUEUE_AV; queueType < MAX_BATTLEGROUND_QUEUE_TYPES; ++queueType)
-            {
-                this->BattlegroundData[queueType][bracket] = BattlegroundInfo();
-            }
-        }
-
-        this->BgCheckTimer = 0;
-        this->LfgCheckTimer = 0;
         this->PlayersCheckTimer = 0;
     }
 
@@ -266,9 +184,6 @@ private:
     uint32 SetEventValue(uint32 bot, std::string const& event, uint32 value, uint32 validIn,
                          std::string const& data = "");
     void GetBots();
-    std::vector<uint32> GetBgBots(uint32 bracket);
-    time_t BgCheckTimer;
-    time_t LfgCheckTimer;
     time_t PlayersCheckTimer;
     time_t RealPlayerLastTimeSeen = 0;
     time_t DelayLoginBotsTimer;
@@ -293,8 +208,6 @@ private:
 
     // std::map<uint32, std::vector<WorldLocation>> rpgLocsCache;
     std::map<uint32, std::map<uint32, std::vector<WorldLocation>>> rpgLocsCacheLevel;
-    std::map<TeamId, std::map<BattlegroundTypeId, std::vector<uint32>>> BattleMastersCache;
-    std::unordered_map<uint32, ObjectGuid::LowType> BattleMasterSpawnIds;
     std::unordered_map<uint32, BotEventCache> eventCache;
     std::unordered_set<uint32> currentBots;
     uint32 playersLevel;

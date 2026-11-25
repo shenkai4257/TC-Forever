@@ -99,11 +99,6 @@ bool AutoReleaseSpiritAction::Execute(Event /*event*/)
 
     LogRelease("releases spirit");
 
-    if (bot->InBattleground())
-    {
-        return HandleBattlegroundSpiritHealer();
-    }
-
     botAI->SetNextCheckDelay(1000);
     return true;
 }
@@ -113,62 +108,10 @@ bool AutoReleaseSpiritAction::isUseful()
     if (!bot->isDead() || bot->InArena())
         return false;
 
-    if (bot->InBattleground())
-        return ShouldDelayBattlegroundRelease();
-
     if (bot->HasPlayerFlag(PLAYER_FLAGS_GHOST))
         return false;
 
     return ShouldAutoRelease();
-}
-
-bool AutoReleaseSpiritAction::HandleBattlegroundSpiritHealer()
-{
-    constexpr uint32_t RESURRECT_DELAY = 15;
-    const time_t now = time(nullptr);
-
-    if ((now - m_bgGossipTime < RESURRECT_DELAY) &&
-        bot->HasAura(SPELL_WAITING_FOR_RESURRECT))
-    {
-        return false;
-    }
-
-    float bgRange = 2000.0f;
-    GuidVector npcs = NearestNpcsValue(botAI, bgRange);
-    Unit* spiritHealer = nullptr;
-
-    for (auto const& guid : npcs)
-    {
-        Unit* unit = botAI->GetUnit(guid);
-        if (unit && unit->IsFriendlyTo(bot) && unit->IsSpiritService() &&
-            (!spiritHealer || bot->GetDistance(unit) < bot->GetDistance(spiritHealer)))
-            spiritHealer = unit;  // nearest: the list is not sorted
-    }
-
-    if (!spiritHealer)
-        return false;
-
-    if (bot->GetDistance(spiritHealer) >= INTERACTION_DISTANCE)
-    {
-        // Bot needs to actually click spirit-healer in BG to get res timer going
-        // and in IOC it's not within clicking range when they res in own base
-
-        // Teleport to nearest friendly Spirit Healer when not currently in range of one.
-        bot->RemoveAurasWithInterruptFlags(SpellAuraInterruptFlags::LeaveWorld | SpellAuraInterruptFlags::EnterWorld);
-        bot->TeleportTo(bot->GetMapId(), spiritHealer->GetPositionX(), spiritHealer->GetPositionY(), spiritHealer->GetPositionZ(), 0.f);
-        RESET_AI_VALUE(bool, "combat::self target");
-        RESET_AI_VALUE(WorldPosition, "current position");
-    }
-    else if (!IsSelfBot(bot))
-    {
-        m_bgGossipTime = now;
-        WorldPacket rawHello(CMSG_TALK_TO_GOSSIP);
-        WorldPackets::NPC::Hello hello(std::move(rawHello));
-        hello.Unit = spiritHealer->GetGUID();
-        bot->GetSession()->HandleGossipHelloOpcode(hello);
-    }
-
-    return true;
 }
 
 bool AutoReleaseSpiritAction::ShouldAutoRelease() const
@@ -194,32 +137,6 @@ bool AutoReleaseSpiritAction::ShouldAutoRelease() const
     return ServerFacade::instance().IsDistanceGreaterThan(
         AI_VALUE2(float, "distance", "group leader"),
         sPlayerbotAIConfig.SightDistance);
-}
-
-bool AutoReleaseSpiritAction::ShouldDelayBattlegroundRelease() const
-{
-    // The below delays release to spirit with 6 seconds.
-    // This prevents currently casted (ranged) spells to be re-directed to the died bot's ghost.
-
-    // If the bot already is a spirit, reset release time and return true
-    if (bot->HasPlayerFlag(PLAYER_FLAGS_GHOST))
-    {
-        botAI->bgReleaseAttemptTime = 0;
-        return true;
-    }
-
-    // Delay release to spirit.
-    const time_t now = time(nullptr);
-    constexpr time_t RELEASE_DELAY = 6;
-
-    if (botAI->bgReleaseAttemptTime == 0)
-        botAI->bgReleaseAttemptTime = now;
-
-    if (now - botAI->bgReleaseAttemptTime < RELEASE_DELAY)
-        return false;
-
-    botAI->bgReleaseAttemptTime = 0;
-    return true;
 }
 
 bool RepopAction::Execute(Event /*event*/)

@@ -6,8 +6,8 @@
 
 #include "EnemyPlayerValue.h"
 #include "CombatManager.h"
+#include "InvalidTargetValue.h"
 #include "Playerbots.h"
-#include "PvpValues.h"
 #include "ServerFacade.h"
 #include "Vehicle.h"
 
@@ -68,10 +68,6 @@ Unit* EnemyPlayerValue::Calculate()
             !bot->IsWithinDist(pTarget, VISIBILITY_DISTANCE_NORMAL))
             continue;
 
-        if ((bot->GetTeamId() == TEAM_HORDE && pTarget->HasAura(23333)) ||
-            (bot->GetTeamId() == TEAM_ALLIANCE && pTarget->HasAura(23335)))
-            return pTarget;
-
         targets.push_back(pTarget);
     }
 
@@ -87,7 +83,7 @@ Unit* EnemyPlayerValue::Calculate()
     // 2. Find enemy player in range.
 
     GuidVector players = AI_VALUE(GuidVector, "nearest enemy players");
-    float const maxAggroDistance = GetMaxAttackDistance();
+    float const maxAggroDistance = 60.0f;
     for (auto const& gTarget : players)
     {
         Unit* pUnit = botAI->GetUnit(gTarget);
@@ -100,17 +96,6 @@ Unit* EnemyPlayerValue::Calculate()
 
         if (pTarget == pVictim)
             continue;
-
-        if (bot->GetTeamId() == TEAM_HORDE)
-        {
-            if (pTarget->HasAura(23333))
-                return pTarget;
-        }
-        else
-        {
-            if (pTarget->HasAura(23335))
-                return pTarget;
-        }
 
         // Aggro weak enemies from further away.
         // If controlling mobile vehicle only agro close enemies (otherwise will never reach objective)
@@ -152,26 +137,4 @@ Unit* EnemyPlayerValue::Calculate()
     }
 
     return nullptr;
-}
-
-float EnemyPlayerValue::GetMaxAttackDistance()
-{
-    if (!bot->GetBattleground())
-        return 60.0f;
-
-    Battleground* bg = bot->GetBattleground();
-    if (!bg)
-        return 40.0f;
-
-    BattlegroundTypeId bgType = bg->GetTypeID();
-    if (bgType == BATTLEGROUND_RB)
-        bgType = bg->GetTypeID();
-
-    if (bgType == BATTLEGROUND_IC)
-    {
-        if (botAI->IsInVehicle(false, true))
-            return 120.0f;
-    }
-
-    return 40.0f;
 }

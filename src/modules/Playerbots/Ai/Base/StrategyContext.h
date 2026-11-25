@@ -8,7 +8,6 @@
 #define PLAYERBOTS_STRATEGYCONTEXT_H
 
 #include "AggressiveStrategy.h"
-#include "BattlegroundStrategy.h"
 #include "AttackEnemyPlayersStrategy.h"
 #include "CastTimeStrategy.h"
 #include "ChatCommandHandlerStrategy.h"
@@ -101,10 +100,6 @@ public:
         creators["close"] = &StrategyContext::close;
         creators["ranged"] = &StrategyContext::ranged;
         creators["behind"] = &StrategyContext::behind;
-        creators["battleground"] = &StrategyContext::battleground;
-        creators["warsong"] = &StrategyContext::warsong;
-        creators["alterac"] = &StrategyContext::alterac;
-        creators["arathi"] = &StrategyContext::arathi;
         creators["mount"] = &StrategyContext::mount;
         creators["rtsc"] = &StrategyContext::rtsc;
         creators["attack tagged"] = &StrategyContext::attack_tagged;
@@ -172,10 +167,6 @@ private:
     static Strategy* possible_adds(PlayerbotAI* botAI) { return new PossibleAddsStrategy(botAI); }
     static Strategy* pull_back(PlayerbotAI* botAI) { return new PullBackStrategy(botAI); }
     static Strategy* mount(PlayerbotAI* botAI) { return new MountStrategy(botAI); }
-    static Strategy* battleground(PlayerbotAI* botAI) { return new BattlegroundStrategy(botAI); }
-    static Strategy* warsong(PlayerbotAI* botAI) { return new WarsongStrategy(botAI); }
-    static Strategy* alterac(PlayerbotAI* botAI) { return new AlteracStrategy(botAI); }
-    static Strategy* arathi(PlayerbotAI* botAI) { return new ArathiStrategy(botAI); }
     static Strategy* rtsc(PlayerbotAI* botAI) { return new RTSCStrategy(botAI); }
     static Strategy* attack_tagged(PlayerbotAI* botAI) { return new AttackTaggedStrategy(botAI); }
     static Strategy* debug(PlayerbotAI* botAI) { return new DebugStrategy(botAI); }

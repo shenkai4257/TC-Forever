@@ -37,7 +37,7 @@ bool FindPotionVisitor::Accept(ItemTemplate const* proto)
 
             for (uint8 i = 0; i < 3; i++)
             {
-                if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == effectId)
+                if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == effectId)
                     return true;
             }
         }
@@ -56,7 +56,7 @@ bool FindMountVisitor::Accept(ItemTemplate const* proto)
 
         for (uint8 i = 0; i < 3; i++)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).ApplyAuraName == SPELL_AURA_MOUNTED)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).ApplyAuraName == SPELL_AURA_MOUNTED)
                 return true;
         }
     }
@@ -76,7 +76,7 @@ bool FindPetVisitor::Accept(ItemTemplate const* proto)
 
             for (uint8 i = 0; i < 3; i++)
             {
-                if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_SUMMON_PET)
+                if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_SUMMON_PET)
                     return true;
             }
         }

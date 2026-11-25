@@ -14,7 +14,7 @@
 #include "BuiltInConfig.h"
 #include "DBUpdater.h"
 #include "DatabaseEnv.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
 #include <mysqld_error.h>
 #include "GatherNodeMgr.h"
 #include "GuildTaskMgr.h"
@@ -26,6 +26,7 @@
 #include "PlayerbotWorldThreadProcessor.h"
 #include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
+#include "World.h"
 #include "cmath"
 
 namespace
@@ -35,42 +36,6 @@ namespace
     // letting later ticks dereference uninitialized managers.
     bool playerbotsWorldInitialized = false;
 }
-
-class PlayerbotsDatabaseScript : public DatabaseScript
-{
-public:
-    PlayerbotsDatabaseScript() : DatabaseScript("PlayerbotsDatabaseScript") {}
-
-    bool OnModuleDatabasesLoading() override
-    {
-        // Fires from StartDB() before the module script loader has registered this
-        // script on 12.x, so it normally never reaches us; the world script opens
-        // the pool instead. Kept idempotent for cores that run it after loading.
-        return OpenPlayerbotsDatabase();
-    }
-
-    void OnModuleDatabasesKeepAlive() override { PlayerbotsDatabase.KeepAlive(); }
-
-    void OnModuleDatabasesClosing() override { PlayerbotsDatabase.Close(); }
-
-    void OnDatabaseWarnAboutSyncQueries(bool apply) override { PlayerbotsDatabase.WarnAboutSyncQueries(apply); }
-
-    void OnDatabaseGetDBRevision(std::map<std::string, std::string>& revisions) override
-    {
-        std::string revision;
-        if (QueryResult resultPlayerbot =
-                PlayerbotsDatabase.PQuery("SELECT date FROM version_db_playerbots ORDER BY date DESC LIMIT 1"))
-        {
-            Field* fields = resultPlayerbot->Fetch();
-            revision = PlayerbotFieldGet<std::string>(fields[0]);
-        }
-
-        if (revision.empty())
-            revision = "Unknown Playerbots Database Revision";
-
-        revisions["Playerbots"] = revision;
-    }
-};
 
 class PlayerbotsPlayerScript : public PlayerScript
 {
@@ -116,8 +81,16 @@ public:
         }
     }
 
-    void OnPlayerBeforeLogout(Player* player) override
+    // The upstream logout hook fires from WorldSession::LogoutPlayer while the player object is still
+    // alive, right before it is deleted - the same point where the module's own OnDestructPlayer hook
+    // used to release these two. Doing it here also leaves both registries clean (their destructors
+    // unregister by guid), and a bot that was already disposed by DisablePlayerBot is simply not found.
+    void OnLogout(Player* player) override
     {
+        // What the module's own OnPlayerBeforeLogout hook used to do: take the master's bots down first
+        // (a self bot keeps running on the player's own AI), then let the random-bot manager see the
+        // logout. The upstream hook fires slightly later (after the player is saved), which is what
+        // makes this hook enough on its own.
         if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
         {
             PlayerbotAI* botAI = PlayerbotsMgr::instance().GetPlayerbotAI(player);
@@ -127,11 +100,15 @@ public:
         }
 
         sRandomPlayerbotMgr.OnPlayerLogout(player);
-    }
 
-    void OnCreatureKillCredit(Player* player, Creature* killed) override
-    {
-        GuildTaskMgr::instance().CheckKillTask(player, killed);
+        // Release the per-player module data while the player object is still alive. Both destructors
+        // unregister by guid, and a bot already disposed by DisablePlayerBot is simply not found here.
+        // This replaces the module's own MiscScript::OnDestructPlayer hook.
+        if (PlayerbotAI* botAI = PlayerbotsMgr::instance().GetPlayerbotAI(player))
+            delete botAI;
+
+        if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
+            delete playerbotMgr;
     }
 
     void OnBeforePetitionSign(Player* player, ObjectGuid /*petitionGuid*/, bool& alreadySignedByAccount) override
@@ -142,21 +119,6 @@ public:
         // bots share accounts, so the same-account rule must not stop them from signing each other
         if (PlayerbotsMgr::instance().GetPlayerbotAI(player) != nullptr)
             alreadySignedByAccount = false;
-    }
-
-    void OnAfterUpdate(Player* player, uint32 diff) override
-    {
-        PlayerbotAI* const botAI = PlayerbotsMgr::instance().GetPlayerbotAI(player);
-
-        if (botAI != nullptr)
-        {
-            botAI->UpdateAI(diff);
-        }
-
-        if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
-        {
-            playerbotMgr->UpdateAI(diff);
-        }
     }
 
     using PlayerScript::OnChat;  // keep the base overloads visible
@@ -226,7 +188,9 @@ public:
         sRandomPlayerbotMgr.HandleCommand(type, msg, player);
     }
 
-    void OnPlayerGiveXP(Player* player, uint32& amount, Unit* /*victim*/, uint8 /*xpSource*/) override
+    // The core's own OnGiveXP hook: it fires on every path that actually grants XP, with the same
+    // writable amount (the xpSource parameter of the AC signature was never used here).
+    void OnGiveXP(Player* player, uint32& amount, Unit* /*victim*/) override
     {
         // early return
         if (sPlayerbotAIConfig.RandomBotXPRate == 1.0 || !player)
@@ -252,23 +216,6 @@ public:
 
         // otherwise apply bot XP multiplier.
         amount = static_cast<uint32>(std::round(static_cast<float>(amount) * sPlayerbotAIConfig.RandomBotXPRate));
-    }
-};
-
-class PlayerbotsMiscScript : public MiscScript
-{
-public:
-    PlayerbotsMiscScript() : MiscScript("PlayerbotsMiscScript") {}
-
-    void OnDestructPlayer(Player* player) override
-    {
-        PlayerbotAI* botAI = PlayerbotsMgr::instance().GetPlayerbotAI(player);
-
-        if (botAI != nullptr)
-            delete botAI;
-
-        if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
-            delete playerbotMgr;
     }
 };
 
@@ -301,17 +248,24 @@ public:
     }
 };
 
-class PlayerbotsSessionScript : public SessionScript
+class PlayerbotsUnitScript : public UnitScript
 {
 public:
-    PlayerbotsSessionScript() : SessionScript("PlayerbotsSessionScript") {}
+    PlayerbotsUnitScript() : UnitScript("PlayerbotsUnitScript") {}
 
-    // Runs on the world thread for every real session: drains the packet queues of the bots it owns
-    void OnSessionUpdate(WorldSession* session, uint32 /*diff*/) override
+    // Guild task kill credit. The module used to get this from its own PlayerScript::OnCreatureKillCredit
+    // hook; the upstream OnUnitDeath hook fires for every kill, and resolving the attacker to the player
+    // controlling it gives the same credit the core hook had (a pet's or totem's kill counts for its
+    // owner). Only the creature entry matters to the task check, so running before the death state is
+    // set is fine.
+    void OnUnitDeath(Unit* victim, Unit* killer) override
     {
-        if (Player* player = session->GetPlayer())
-            if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
-                playerbotMgr->UpdateSessions();
+        Creature* creature = victim ? victim->ToCreature() : nullptr;
+        if (!creature || !killer)
+            return;
+
+        if (Player* player = killer->GetCharmerOrOwnerPlayerOrPlayerItself())
+            GuildTaskMgr::instance().CheckKillTask(player, creature);
     }
 };
 
@@ -339,15 +293,6 @@ public:
 
         uint32 oldMSTime = getMSTime();
 
-        // 12.x registers scripts only from World::SetInitialWorldSettings(), after
-        // StartDB() already fired the DatabaseScript hook, so open the module pool
-        // here before anything touches it.
-        if (!OpenPlayerbotsDatabase())
-        {
-            TC_LOG_ERROR("server.playerbots", "Playerbots module stays disabled: its database is unavailable.");
-            return;
-        }
-
         TC_LOG_INFO("server.loading", " ");
         TC_LOG_INFO("server.loading", "Load Playerbots Config...");
 
@@ -364,77 +309,6 @@ public:
 
         TC_LOG_INFO("server.loading", "Playerbots World Thread Processor initialized");
 
-
-        // TEMP 1.60 content audit (remove once the class skill list is verified):
-        // report which hardcoded class spell ids the 1.60 client data does not have.
-        struct ClassSpellAuditEntry { char const* name; uint32 id; };
-        static constexpr ClassSpellAuditEntry kClassSpellAudit[] =
-        {
-            { "SPELL_DIVINE_SHIELD", 642 },
-            { "SPELL_CONJURE_MANA_AGATE", 759 },
-            { "SPELL_CAT_FORM", 768 },
-            { "SPELL_HAND_OF_PROTECTION", 1022 },
-            { "SPELL_HAND_OF_SALVATION", 1038 },
-            { "SPELL_HAND_OF_FREEDOM", 1044 },
-            { "SPELL_STEALTH", 1784 },
-            { "SPELL_SPRINT_RANK_1", 2983 },
-            { "SPELL_CONJURE_MANA_JADE", 3552 },
-            { "SPELL_WRATH_OF_AIR_TOTEM", 3738 },
-            { "SPELL_MANA_SPRING_TOTEM", 5675 },
-            { "SPELL_RAVAGE_RANK_1", 6785 },
-            { "SPELL_HAND_OF_SACRIFICE", 6940 },
-            { "SPELL_CLEANSING_TOTEM", 8170 },
-            { "SPELL_GROUNDING_TOTEM", 8177 },
-            { "SPELL_FLAMETONGUE_TOTEM", 8227 },
-            { "SPELL_WINDFURY_TOTEM", 8512 },
-            { "SPELL_POUNCE_RANK_1", 9005 },
-            { "SPELL_CONJURE_MANA_CITRINE", 10053 },
-            { "SPELL_CONJURE_MANA_RUBY", 10054 },
-            { "SPELL_ICE_SHARDS", 15047 },
-            { "SPELL_BLESSING_OF_MIGHT", 19740 },
-            { "SPELL_BLESSING_OF_WISDOM", 19742 },
-            { "SPELL_IMPROVED_MIGHT_R1", 20042 },
-            { "SPELL_IMPROVED_MIGHT_R2", 20045 },
-            { "SPELL_BLESSING_OF_KINGS", 20217 },
-            { "SPELL_RETALIATION", 20230 },
-            { "SPELL_IMPROVED_WISDOM_R1", 20244 },
-            { "SPELL_IMPROVED_WISDOM_R2", 20245 },
-            { "SPELL_BLESSING_OF_SANCTUARY", 20911 },
-            { "SPELL_GREATER_BLESSING_OF_MIGHT", 25782 },
-            { "SPELL_GREATER_BLESSING_OF_WISDOM", 25894 },
-            { "SPELL_GREATER_BLESSING_OF_KINGS", 25898 },
-            { "SPELL_GREATER_BLESSING_OF_SANCTUARY", 25899 },
-            { "SPELL_CONJURE_MANA_EMERALD", 27101 },
-            { "SPELL_TOTEM_OF_WRATH", 30706 },
-            { "SPELL_TREE_OF_LIFE", 33891 },
-            { "SPELL_BLESSING_OF_PROTECTION", 41450 },
-            { "SPELL_CONJURE_MANA_SAPPHIRE", 42985 },
-            { "SPELL_DEEP_FREEZE", 44572 },
-            { "SPELL_FROSTFIRE_BOLT", 44614 },
-            { "SPELL_ICE_BLOCK", 45438 },
-            { "SPELL_ECLIPSE_SOLAR", 48517 },
-            { "SPELL_ECLIPSE_LUNAR", 48518 },
-            { "SPELL_VIGILANCE", 50720 },
-            { "SPELL_FOCUS_MAGIC", 54646 },
-            { "SPELL_RENEWED_HOPE_R1", 57470 },
-            { "SPELL_RENEWED_HOPE_R2", 57472 },
-            { "SPELL_MASTER_POISONER_RANK_3", 58410 },
-            { "SPELL_GLYPH_OF_BLAST_WAVE", 62126 },
-            { "SPELL_GLYPH_OF_THUNDERSTORM", 62132 },
-            { "SPELL_GLYPH_OF_TYPHOON", 62135 },
-            { "SPELL_LIFE_TAP_GLYPH", 63320 },
-            { "SPELL_SHATTERING_THROW", 64382 },
-        };
-        for (ClassSpellAuditEntry const& e : kClassSpellAudit)
-        {
-            SpellInfo const* si = sSpellMgr->GetSpellInfo(e.id, DIFFICULTY_NONE);
-            if (!si)
-                TC_LOG_WARN("playerbots", "[SpellAudit] MISSING {} = {}", e.name, e.id);
-            else
-                TC_LOG_INFO("playerbots", "[SpellAudit] OK {} = {} name={}", e.name, e.id,
-                    si->SpellName->Str[sWorld->GetDefaultDbcLocale()]);
-        }
-
         playerbotsWorldInitialized = true;
     }
 
@@ -444,7 +318,18 @@ public:
             return;
 
         PlayerbotHolder::UpdatePendingLogins();  // Headless sessions whose login holder is in flight
-        sRandomPlayerbotMgr.UpdateSessions();  // Per-bot packet queues, world thread only
+
+        // Session upkeep for the bots a real player owns: async query callbacks and pending teleport
+        // acks, both world-thread only. This replaces the module-specific SessionScript::OnSessionUpdate
+        // hook - the world tick already runs on the world thread after every map update.
+        for (auto const& [accountId, session] : sWorld->GetAllSessions())
+        {
+            if (Player* player = session->GetPlayer())
+                if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
+                    playerbotMgr->UpdateSessions();
+        }
+
+        sRandomPlayerbotMgr.UpdateSessions();
         PlayerbotWorldThreadProcessor::instance().Update(diff);
         sRandomPlayerbotMgr.UpdateAI(diff);  // World thread only
     }
@@ -467,11 +352,9 @@ void AddSC_randombot_level_mgr();
 
 void AddPlayerbotsScripts()
 {
-    new PlayerbotsDatabaseScript();
     new PlayerbotsPlayerScript();
-    new PlayerbotsMiscScript();
     new PlayerbotsServerScript();
-    new PlayerbotsSessionScript();
+    new PlayerbotsUnitScript();
     new PlayerbotsWorldScript();
     AddPlayerbotsCommandscripts();
     AddPlayerbotsSecureLoginScripts();

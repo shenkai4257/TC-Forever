@@ -103,7 +103,7 @@ bool HasAreaDebuffValue::Calculate()
             if (!proto)
                 continue;
 
-            uint32 trigger_spell_id = proto->GetEffectOrDefault(SpellEffIndex(aurEff->GetEffIndex())).TriggerSpell;
+            uint32 trigger_spell_id = GetEffectOrDefault(proto, SpellEffIndex(aurEff->GetEffIndex())).TriggerSpell;
             if (trigger_spell_id == 29767)  // Overload
             {
                 return true;

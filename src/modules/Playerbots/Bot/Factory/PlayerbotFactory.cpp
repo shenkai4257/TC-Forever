@@ -10,12 +10,10 @@
 #include "Bag.h"
 #include "ItemTemplateHelper.h"
 #include "FieldHelper.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
 #include "AccountMgr.h"
 #include "AiFactory.h"
 #include "AiObjectContext.h"
-#include "ArenaTeam.h"
-#include "ArenaTeamMgr.h"
 #include "DB2Stores.h"
 #include "DB2Structure.h"
 #include "GuildMgr.h"
@@ -215,10 +213,10 @@ uint16 PlayerbotFactory::GetTrainerSpellTradeSkill(Trainer::Spell const* trainer
 
     for (uint8 effectIndex = 0; effectIndex < spellInfo->GetEffects().size(); ++effectIndex)
     {
-        if (spellInfo->GetEffectOrDefault(SpellEffIndex(effectIndex)).Effect != SPELL_EFFECT_LEARN_SPELL)
+        if (GetEffectOrDefault(spellInfo, SpellEffIndex(effectIndex)).Effect != SPELL_EFFECT_LEARN_SPELL)
             continue;
 
-        uint32 const learnedSpellId = spellInfo->GetEffectOrDefault(SpellEffIndex(effectIndex)).TriggerSpell;
+        uint32 const learnedSpellId = GetEffectOrDefault(spellInfo, SpellEffIndex(effectIndex)).TriggerSpell;
         if (!learnedSpellId)
             continue;
 
@@ -327,9 +325,6 @@ std::vector<PlayerbotFactory::WeightedProfessionPair> PlayerbotFactory::GetClass
             return {{SKILL_MINING, SKILL_BLACKSMITHING, 45},
                     {SKILL_MINING, SKILL_ENGINEERING, 15},
                     {SKILL_HERBALISM, SKILL_ALCHEMY, 10}};
-        case CLASS_DEATH_KNIGHT:
-            return {{SKILL_MINING, SKILL_BLACKSMITHING, 45},
-                    {SKILL_MINING, SKILL_ENGINEERING, 35}};
         case CLASS_HUNTER:
             return {{SKILL_SKINNING, SKILL_LEATHERWORKING, 45},
                     {SKILL_MINING, SKILL_ENGINEERING, 35},
@@ -649,10 +644,10 @@ void PlayerbotFactory::Init()
 
         for (uint8 j = 0; j < spellInfo->GetEffects().size(); ++j)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(j)).Effect != SPELL_EFFECT_ENCHANT_ITEM)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(j)).Effect != SPELL_EFFECT_ENCHANT_ITEM)
                 continue;
 
-            uint32 enchant_id = spellInfo->GetEffectOrDefault(SpellEffIndex(j)).MiscValue;
+            uint32 enchant_id = GetEffectOrDefault(spellInfo, SpellEffIndex(j)).MiscValue;
             if (!enchant_id)
                 continue;
 
@@ -728,7 +723,6 @@ uint8 PlayerbotFactory::GetPreferredArmorType(uint8 cls)
     {
         case CLASS_WARRIOR:
         case CLASS_PALADIN:
-        case CLASS_DEATH_KNIGHT:
             return ITEM_SUBCLASS_ARMOR_PLATE;
 
         case CLASS_HUNTER:
@@ -962,7 +956,7 @@ void PlayerbotFactory::Randomize(bool incremental)
 
     if (bot->GetLevel() >= sPlayerbotAIConfig.MinEnchantingBotLevel)
     {
-        ApplyEnchantAndGemsNew();
+        ApplyEnchants();
     }
     // {
     // pmo = sPerfMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_EnchantTemplate");
@@ -984,8 +978,6 @@ void PlayerbotFactory::Randomize(bool incremental)
     if (pmo)
         pmo->finish();
 
-    TC_LOG_DEBUG("playerbots", "Initializing glyphs...");
-    InitGlyphs();
     // bot->SaveToDB(false);
 
     pmo = sPerfMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Guilds");
@@ -1062,7 +1054,7 @@ void PlayerbotFactory::Refresh()
         InitTalentsTree(true, true, true);
     }
     if (bot->GetLevel() >= sPlayerbotAIConfig.MinEnchantingBotLevel)
-        ApplyEnchantAndGemsNew();
+        ApplyEnchants();
     bot->DurabilityRepairAll(false, 1.0f, false);
     if (bot->isDead())
         bot->ResurrectPlayer(1.0f, false);
@@ -1222,7 +1214,6 @@ void PlayerbotFactory::InitConsumables()
         }
         case CLASS_WARRIOR:
         case CLASS_HUNTER:
-        case CLASS_DEATH_KNIGHT:
         {
             std::vector<uint32> sharpening_stones = {
                 ELEMENTAL_SHARPENING_STONE, DENSE_SHARPENING_STONE, SOLID_SHARPENING_STONE,
@@ -1448,8 +1439,7 @@ void PlayerbotFactory::ClearSkills()
 
 void PlayerbotFactory::ClearEverything()
 {
-    bot->GiveLevel(bot->GetClass() == CLASS_DEATH_KNIGHT ? sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL)
-                                                         : sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL));
+    bot->GiveLevel(sWorld->getIntConfig(CONFIG_START_PLAYER_LEVEL));
     bot->SetXP(0);
     TC_LOG_INFO("playerbots", "Resetting player...");
     bot->ResetTalents(true);
@@ -1620,10 +1610,6 @@ bool PlayerbotFactory::CheckItemStats(uint8 sp, uint8 ap, uint8 tank)
             if (!ap || sp > ap || sp > tank)
                 return false;
             break;
-        case CLASS_DEATH_KNIGHT:
-            if ((!ap && !tank) || sp > ap || sp > tank)
-                return false;
-            break;
     }
 
     return sp || ap || tank;
@@ -1689,7 +1675,6 @@ bool PlayerbotFactory::CanEquipWeapon(ItemTemplate const* proto)
                 return false;
             break;
         case CLASS_PALADIN:
-        case CLASS_DEATH_KNIGHT:
             if (proto->GetSubClass() != ITEM_SUBCLASS_WEAPON_MACE2 && proto->GetSubClass() != ITEM_SUBCLASS_WEAPON_POLEARM &&
                 proto->GetSubClass() != ITEM_SUBCLASS_WEAPON_SWORD2 && proto->GetSubClass() != ITEM_SUBCLASS_WEAPON_AXE2 &&
                 proto->GetSubClass() != ITEM_SUBCLASS_WEAPON_AXE && proto->GetSubClass() != ITEM_SUBCLASS_WEAPON_MACE &&
@@ -2506,10 +2491,10 @@ void PlayerbotFactory::EnchantItem(Item* item)
 
         for (uint8 j = 0; j < spellInfo->GetEffects().size(); ++j)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(j)).Effect != SPELL_EFFECT_ENCHANT_ITEM)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(j)).Effect != SPELL_EFFECT_ENCHANT_ITEM)
                 continue;
 
-            uint32 enchant_id = spellInfo->GetEffectOrDefault(SpellEffIndex(j)).MiscValue;
+            uint32 enchant_id = GetEffectOrDefault(spellInfo, SpellEffIndex(j)).MiscValue;
             if (!enchant_id)
                 continue;
 
@@ -2742,41 +2727,9 @@ void PlayerbotFactory::InitTradeSkills()
 
 void PlayerbotFactory::InitTradeSpecializations()
 {
-    InitAlchemySpecialization();
     InitEngineeringSpecialization();
     InitLeatherworkingSpecialization();
-    InitTailoringSpecialization();
     InitBlacksmithingSpecialization();
-}
-
-bool PlayerbotFactory::InitAlchemySpecialization()
-{
-    if (!bot->HasSkill(SKILL_ALCHEMY) ||
-        bot->GetBaseSkillValue(SKILL_ALCHEMY) < 325 ||
-        bot->GetLevel() <= 67)
-        return false;
-
-    if (HasAnySpell(bot, {static_cast<uint32>(ProfessionSpecializationSpell::Transmute),
-                          static_cast<uint32>(ProfessionSpecializationSpell::Elixir),
-                          static_cast<uint32>(ProfessionSpecializationSpell::Potion)}))
-        return false;
-
-    switch (GetStoredOrRandomValue(bot, "alchemySpecialization", 1, 3))
-    {
-        case 1:
-            return LearnProfessionSpecialization(bot,
-                                                 ProfessionSpecializationSpell::Transmute,
-                                                 ProfessionSpecializationSpell::LearnTransmute);
-        case 2:
-            return LearnProfessionSpecialization(bot,
-                                                 ProfessionSpecializationSpell::Elixir,
-                                                 ProfessionSpecializationSpell::LearnElixir);
-        case 3:
-        default:
-            return LearnProfessionSpecialization(bot,
-                                                 ProfessionSpecializationSpell::Potion,
-                                                 ProfessionSpecializationSpell::LearnPotion);
-    }
 }
 
 bool PlayerbotFactory::InitEngineeringSpecialization()
@@ -2831,36 +2784,6 @@ bool PlayerbotFactory::InitLeatherworkingSpecialization()
             return LearnProfessionSpecialization(bot,
                                                  ProfessionSpecializationSpell::Tribal,
                                                  ProfessionSpecializationSpell::LearnTribal);
-    }
-}
-
-bool PlayerbotFactory::InitTailoringSpecialization()
-{
-    if (!bot->HasSkill(SKILL_TAILORING) ||
-        bot->GetBaseSkillValue(SKILL_TAILORING) < 350 ||
-        bot->GetLevel() <= 59)
-        return false;
-
-    if (HasAnySpell(bot, {static_cast<uint32>(ProfessionSpecializationSpell::Spellfire),
-                          static_cast<uint32>(ProfessionSpecializationSpell::Mooncloth),
-                          static_cast<uint32>(ProfessionSpecializationSpell::Shadoweave)}))
-        return false;
-
-    switch (GetStoredOrRandomValue(bot, "tailorSpecialization", 1, 3))
-    {
-        case 1:
-            return LearnProfessionSpecialization(bot,
-                                                 ProfessionSpecializationSpell::Spellfire,
-                                                 ProfessionSpecializationSpell::LearnSpellfire);
-        case 2:
-            return LearnProfessionSpecialization(bot,
-                                                 ProfessionSpecializationSpell::Mooncloth,
-                                                 ProfessionSpecializationSpell::LearnMooncloth);
-        case 3:
-        default:
-            return LearnProfessionSpecialization(bot,
-                                                 ProfessionSpecializationSpell::Shadoweave,
-                                                 ProfessionSpecializationSpell::LearnShadoweave);
     }
 }
 
@@ -3043,17 +2966,6 @@ void PlayerbotFactory::InitSkills()
                         SetRandomSkill(SKILL_LOCKPICKING);
             bot->SetSkill(SKILL_DUAL_WIELD, 0, 1, 1);
             bot->SetCanDualWield(true);
-            break;
-        case CLASS_DEATH_KNIGHT:
-            SetRandomSkill(SKILL_SWORDS);
-            SetRandomSkill(SKILL_AXES);
-            SetRandomSkill(SKILL_MACES);
-            SetRandomSkill(SKILL_TWO_HANDED_SWORDS);
-            SetRandomSkill(SKILL_TWO_HANDED_MACES);
-            SetRandomSkill(SKILL_TWO_HANDED_AXES);
-            SetRandomSkill(SKILL_POLEARMS);
-            bot->SetSkill(SKILL_DUAL_WIELD, 0, dualWieldLevel, dualWieldLevel);
-            bot->SetCanDualWield(dualWieldLevel);
             break;
         default:
             break;
@@ -3286,11 +3198,6 @@ void PlayerbotFactory::InitSpecialSpells()
         uint32 spellId = *i;
         bot->LearnSpell(spellId, false);
     }
-    // to leave DK starting area
-    if (bot->GetClass() == CLASS_DEATH_KNIGHT)
-    {
-        bot->LearnSpell(50977, false);
-    }
 }
 
 void PlayerbotFactory::InitTalents(uint32 /*specNo*/)
@@ -3515,7 +3422,7 @@ void PlayerbotFactory::AutoGear(Player* bot, uint32 itemQuality, uint32 ilvl, bo
 
     factory.InitAmmo();
     if (bot->GetLevel() >= sPlayerbotAIConfig.MinEnchantingBotLevel)
-        factory.ApplyEnchantAndGemsNew();
+        factory.ApplyEnchants();
     bot->DurabilityRepairAll(false, 1.0f, false);
 }
 
@@ -3715,10 +3622,6 @@ void PlayerbotFactory::InitReagents()
     std::vector<std::pair<uint32, uint32>> items;
     switch (bot->GetClass())
     {
-        case CLASS_DEATH_KNIGHT:
-        if (level >= 56)
-                items.push_back({37201, 40});   // Corpse Dust
-            break;
         case CLASS_DRUID:
             if (level >= 20 && level < 30)
                 items.push_back({17034, 20});   // Maple Seed
@@ -3895,11 +3798,6 @@ void PlayerbotFactory::CleanupConsumables() // remove old consumables as part of
         bot->DestroyItem(item->GetBagSlot(), item->GetSlot(), true);
 }
 
-
-void PlayerbotFactory::InitGlyphs(bool /*increment*/)
-{
-    // Glyphs are WotLK content and were removed from this realm.
-}
 
 void PlayerbotFactory::CancelAuras() { bot->RemoveAllAuras(); }
 
@@ -4230,7 +4128,7 @@ void PlayerbotFactory::ApplyEnchantTemplate(uint8 spec)
             if (spellInfo->GetEffects().empty())
                 return;
 
-            uint32 enchantid = spellInfo->GetEffectOrDefault(SpellEffIndex(0)).MiscValue;
+            uint32 enchantid = GetEffectOrDefault(spellInfo, SpellEffIndex(0)).MiscValue;
             if (!enchantid)
             {
                 // TC_LOG_ERROR("playerbots", "{}: Invalid enchantid ", enchantid, " report to devs",
@@ -4254,9 +4152,9 @@ void PlayerbotFactory::ApplyEnchantTemplate(uint8 spec)
     // const SpellItemEnchantmentEntry* a = sSpellItemEnchantmentStore.LookupEntry(1);
 }
 
-void PlayerbotFactory::ApplyEnchantAndGemsNew(bool /*destroyOld*/)
+void PlayerbotFactory::ApplyEnchants()
 {
-    // 1.60 has no jewelcrafting and no item sockets: only permanent enchants are applied.
+    // Permanent enchants only.
     StatsWeightCalculator calculator(bot);
     for (uint8 slot = 0; slot < EQUIPMENT_SLOT_END; ++slot)
     {
@@ -4292,10 +4190,10 @@ void PlayerbotFactory::ApplyEnchantAndGemsNew(bool /*destroyOld*/)
 
             for (uint8 j = 0; j < spellInfo->GetEffects().size(); ++j)
             {
-                if (spellInfo->GetEffectOrDefault(SpellEffIndex(j)).Effect != SPELL_EFFECT_ENCHANT_ITEM)
+                if (GetEffectOrDefault(spellInfo, SpellEffIndex(j)).Effect != SPELL_EFFECT_ENCHANT_ITEM)
                     continue;
 
-                uint32 enchant_id = spellInfo->GetEffectOrDefault(SpellEffIndex(j)).MiscValue;
+                uint32 enchant_id = GetEffectOrDefault(spellInfo, SpellEffIndex(j)).MiscValue;
                 if (!enchant_id)
                     continue;
 
@@ -4406,8 +4304,7 @@ void PlayerbotFactory::LoadEnchantContainer()
 {
     m_EnchantContainer.clear();
 
-    PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_ENCHANTS);
-    if (PreparedQueryResult result = PlayerbotsDatabase.Query(stmt))
+    if (QueryResult result = WorldDatabase.Query("SELECT class, spec, spellid, slotid FROM playerbots_enchants"))
     {
         do
         {

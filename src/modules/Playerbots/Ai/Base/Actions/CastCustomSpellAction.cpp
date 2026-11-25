@@ -196,7 +196,7 @@ std::string const CastCustomNcSpellAction::castString(WorldObject* target)
 bool CastRandomSpellAction::AcceptSpell(SpellInfo const* spellInfo)
 {
     bool isTradeSkill = !spellInfo->GetEffects().empty() &&
-                        spellInfo->GetEffectOrDefault(EFFECT_0).Effect == SPELL_EFFECT_CREATE_ITEM &&
+                        GetEffectOrDefault(spellInfo, EFFECT_0).Effect == SPELL_EFFECT_CREATE_ITEM &&
                         spellInfo->ReagentCount[EFFECT_0] > 0 && spellInfo->SchoolMask == 1;
     return !isTradeSkill && spellInfo->GetRecoveryTime() < MINUTE * IN_MILLISECONDS;
 }
@@ -306,7 +306,7 @@ bool CastRandomSpellAction::Execute(Event event)
 bool CraftRandomItemAction::AcceptSpell(SpellInfo const* spellInfo)
 {
     return !spellInfo->GetEffects().empty() &&
-           spellInfo->GetEffectOrDefault(EFFECT_0).Effect == SPELL_EFFECT_CREATE_ITEM && spellInfo->ReagentCount[EFFECT_0] > 0 &&
+           GetEffectOrDefault(spellInfo, EFFECT_0).Effect == SPELL_EFFECT_CREATE_ITEM && spellInfo->ReagentCount[EFFECT_0] > 0 &&
            spellInfo->SchoolMask == 0;
 }
 
@@ -315,9 +315,9 @@ uint32 CraftRandomItemAction::GetSpellPriority(SpellInfo const* spellInfo)
     if (spellInfo->GetEffects().empty())
         return 1;
 
-    if (spellInfo->GetEffectOrDefault(EFFECT_0).Effect != SPELL_EFFECT_CREATE_ITEM)
+    if (GetEffectOrDefault(spellInfo, EFFECT_0).Effect != SPELL_EFFECT_CREATE_ITEM)
     {
-        uint32 newItemId = spellInfo->GetEffectOrDefault(EFFECT_0).ItemType;
+        uint32 newItemId = GetEffectOrDefault(spellInfo, EFFECT_0).ItemType;
         if (newItemId)
         {
             ItemUsage usage = AI_VALUE2(ItemUsage, "item usage", newItemId);
@@ -374,7 +374,7 @@ bool EnchantRandomItemAction::isUseful() { return botAI->HasSkill(SKILL_ENCHANTI
 bool EnchantRandomItemAction::AcceptSpell(SpellInfo const* spellInfo)
 {
     return !spellInfo->GetEffects().empty() &&
-           spellInfo->GetEffectOrDefault(EFFECT_0).Effect == SPELL_EFFECT_ENCHANT_ITEM && spellInfo->ReagentCount[EFFECT_0] > 0;
+           GetEffectOrDefault(spellInfo, EFFECT_0).Effect == SPELL_EFFECT_ENCHANT_ITEM && spellInfo->ReagentCount[EFFECT_0] > 0;
 }
 
 uint32 EnchantRandomItemAction::GetSpellPriority(SpellInfo const* spellInfo)
@@ -382,7 +382,7 @@ uint32 EnchantRandomItemAction::GetSpellPriority(SpellInfo const* spellInfo)
     if (spellInfo->GetEffects().empty())
         return 1;
 
-    if (spellInfo->GetEffectOrDefault(EFFECT_0).Effect == SPELL_EFFECT_ENCHANT_ITEM)
+    if (GetEffectOrDefault(spellInfo, EFFECT_0).Effect == SPELL_EFFECT_ENCHANT_ITEM)
     {
         if (AI_VALUE2(Item*, "item for spell", spellInfo->Id) && ItemUsageValue::SpellGivesSkillUp(spellInfo->Id, bot))
             return 10;

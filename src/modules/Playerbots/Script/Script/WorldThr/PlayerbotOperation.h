@@ -15,7 +15,7 @@
  * @brief Base class for thread-unsafe operations that must be executed in the world thread
  *
  * PlayerbotOperation represents an operation that needs to be deferred from a map thread
- * to the world thread for safe execution. Examples include group modifications, LFG operations,
+ * to the world thread for safe execution. Examples include group modifications,
  * guild operations, etc.
  *
  * Thread Safety:
@@ -32,7 +32,7 @@ public:
      * @brief Execute this operation in the world thread
      *
      * This method is called by PlayerbotWorldThreadProcessor::Update() which runs in the world thread.
-     * It's safe to perform any thread-unsafe operation here (Group, LFG, Guild, etc.)
+     * It's safe to perform any thread-unsafe operation here (Group, Guild, etc.)
      *
      * @return true if operation succeeded, false if it failed
      */

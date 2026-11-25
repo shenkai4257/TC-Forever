@@ -6,20 +6,98 @@
 
 #include "TalkToQuestGiverAction.h"
 #include "BroadcastHelper.h"
+#include "ByteBuffer.h"
 #include "ChatHelper.h"
 #include "Event.h"
+#include "ItemPacketsCommon.h"
 #include "ItemUsageValue.h"
 #include "Object.h"
+#include "PacketOperators.h"
 #include "Playerbots.h"
 #include "QuestDef.h"
 #include "StatsWeightCalculator.h"
 #include "WorldPacket.h"
 
+namespace
+{
+    // Skips the reward block of SMSG_QUEST_GIVER_OFFER_REWARD_MESSAGE so the quest giver guid and quest id
+    // that follow it can be read (WorldPackets::Quest::QuestGiverOfferReward::operator<<). Every optional
+    // context flag is one bit padded to a byte.
+    void SkipQuestRewards(WorldPacket& p)
+    {
+        auto skipContextFlag = [&p]() -> bool
+        {
+            bool hasContext = false;
+            p >> WorldPackets::Bits<1>(hasContext);
+            p.ResetBitPos();
+            return hasContext;
+        };
+
+        for (int32 i = 0; i < QUEST_REWARD_ITEM_COUNT; ++i)
+        {
+            p.read_skip(2 * sizeof(int32_t));            // ItemID, ItemQty
+            if (skipContextFlag())
+                p.read_skip<int32_t>();
+        }
+
+        for (int32 i = 0; i < QUEST_REWARD_CURRENCY_COUNT; ++i)
+        {
+            p.read_skip(3 * sizeof(int32_t));            // CurrencyID, CurrencyQty, BonusQty
+            if (skipContextFlag())
+                p.read_skip<int32_t>();
+        }
+
+        p.read_skip<int32_t>();                          // ChoiceItemCount
+        for (int32 i = 0; i < QUEST_REWARD_CHOICES_COUNT; ++i)
+        {
+            uint8 choiceBits = 0;                        // 2 bit loot item type, then the context flag
+            p >> WorldPackets::Bits<3>(choiceBits);
+            bool const hasContext = (choiceBits & 1) != 0;
+            WorldPackets::Item::ItemInstance item;       // its first read resets the bit position
+            p >> item;
+            p.read_skip<int32_t>();                      // Quantity
+            if (hasContext)
+                p.read_skip<int32_t>();
+        }
+
+        p.read_skip(3 * sizeof(int32_t));                // ItemCount, Money, XP
+        p.read_skip<int64_t>();                          // ArtifactXP
+        p.read_skip(4 * sizeof(int32_t));                // ArtifactCategoryID, Honor, Title, FactionFlags
+        p.read_skip(QUEST_REWARD_REPUTATIONS_COUNT * 4 * sizeof(int32_t));
+        p.read_skip(QUEST_REWARD_DISPLAY_SPELL_COUNT * sizeof(int32_t));
+        p.read_skip(3 * sizeof(int32_t));                // SpellCompletionID, SkillLineID, NumSkillUps
+
+        uint32 pickerCount = 0;
+        p >> pickerCount;
+        p.read_skip(pickerCount * sizeof(int32_t));
+        p.read_skip<uint8_t>();                          // IsBoostSpell bit + padding
+    }
+
+    // Reads the quest giver guid and quest id out of SMSG_QUEST_GIVER_OFFER_REWARD_MESSAGE.
+    bool ReadOfferRewardQuest(WorldPacket& p, ObjectGuid& questGiver, int32& questId)
+    {
+        try
+        {
+            p.rpos(0);
+            SkipQuestRewards(p);
+
+            int32 emoteCount = 0;
+            p >> emoteCount >> questGiver;
+            p.read_skip(5 * sizeof(int32_t));            // QuestFlags[4], QuestGiverCreatureID
+            p >> questId;
+            return true;
+        }
+        catch (ByteBufferException const&)
+        {
+            return false;
+        }
+    }
+}
+
 bool TalkToQuestGiverAction::ProcessQuest(Quest const* quest, Object* questGiver)
 {
     bool isCompleted = false;
     std::ostringstream out;
-    out << "Quest ";
 
     QuestStatus status = bot->GetQuestStatus(quest->GetQuestId());
     Player* master = GetMaster();
@@ -45,25 +123,35 @@ bool TalkToQuestGiverAction::ProcessQuest(Quest const* quest, Object* questGiver
         }
     }
 
+    // The status words used to be hard coded English with chat colour codes, so every bot said
+    // "Quest Available: ..." whatever the client language; the sentences now come from the text
+    // table (Chinese included).
+    std::map<std::string, std::string> placeholders;
+    placeholders["%quest"] = chat->FormatQuest(quest);
+
     switch (status)
     {
     case QUEST_STATUS_COMPLETE:
+        out << "Quest ";
         isCompleted |= TurnInQuest(quest, questGiver, out);
+        out << ": " << chat->FormatQuest(quest);
         break;
     case QUEST_STATUS_INCOMPLETE:
-        out << "|cffff0000Incompleted|r";
+        out << PlayerbotTextMgr::instance().GetBotTextOrDefault("quest_status_incomplete",
+                                                                 "I have not completed the quest %quest", placeholders);
         break;
     case QUEST_STATUS_NONE:
-        out << "|cff00ff00Available|r";
+        out << PlayerbotTextMgr::instance().GetBotTextOrDefault("quest_status_available",
+                                                                 "Quest %quest available", placeholders);
         break;
     case QUEST_STATUS_FAILED:
-        out << "|cffff0000Failed|r";
+        out << PlayerbotTextMgr::instance().GetBotTextOrDefault("quest_status_failed",
+                                                                 "I have failed the quest %quest", placeholders);
         break;
     default:
         break;
     }
 
-    out << ": " << chat->FormatQuest(quest);
     botAI->TellMaster(out);
 
     return isCompleted;
@@ -195,11 +283,12 @@ void TalkToQuestGiverAction::RewardMultipleItem(Quest const* quest, Object* ques
             }
             ItemTemplate const* item = sObjectMgr->GetItemTemplate(quest->RewardChoiceItemId[best]);
             bot->RewardQuest(quest, LootItemType::Item, best, questGiver, true);
-            out << "Rewarded " << ChatHelper::FormatItem(item);
+            out << PlayerbotTextMgr::instance().GetBotText("quest_reward_received",
+                                                             {{"%item", ChatHelper::FormatItem(item)}});
         }
         else
         {
-            out << "Unable to find suitable reward. Asking for help....";
+            out << PlayerbotTextMgr::instance().GetBotText("quest_no_suitable_reward", {});
             AskToSelectReward(quest, out, true);
         }
     }
@@ -223,7 +312,8 @@ void TalkToQuestGiverAction::RewardMultipleItem(Quest const* quest, Object* ques
             ItemTemplate const* item = sObjectMgr->GetItemTemplate(quest->RewardChoiceItemId[firstId]);
             bot->RewardQuest(quest, LootItemType::Item, firstId, questGiver, true);
 
-            out << "Rewarded " << ChatHelper::FormatItem(item);
+            out << PlayerbotTextMgr::instance().GetBotText("quest_reward_received",
+                                                             {{"%item", ChatHelper::FormatItem(item)}});
         }
     }
 }
@@ -249,17 +339,21 @@ void TalkToQuestGiverAction::AskToSelectReward(Quest const* quest, std::ostrings
 
 bool TurnInQueryQuestAction::Execute(Event event)
 {
-    WorldPacket pakcet = event.getPacket();
     ObjectGuid guid;
-    uint32 questId;
-    pakcet >> guid >> questId;
+    int32 questId = 0;
+    if (!ReadOfferRewardQuest(event.getPacket(), guid, questId))
+        return false;
+
+    Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+    if (!quest)
+        return false;
+
     Object* object =
         ObjectAccessor::GetObjectByTypeMask(*bot, guid, TYPEMASK_UNIT | TYPEMASK_GAMEOBJECT | TYPEMASK_ITEM);
     if (!object || (!object->hasQuest(questId) && !object->hasInvolvedQuest(questId)))
     {
         return false;
     }
-    Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
     QuestStatus status = bot->GetQuestStatus(quest->GetQuestId());
     Player* master = GetMaster();
 
@@ -283,29 +377,39 @@ bool TurnInQueryQuestAction::Execute(Event event)
         }
     }
     std::ostringstream out;
-    out << "Quest ";
+
+    // Same as ProcessQuest: the status sentence comes from the text table instead of hard coded
+    // English so bot chat follows the client language.
+    std::map<std::string, std::string> placeholders;
+    placeholders["%quest"] = chat->FormatQuest(quest);
+
     switch (status)
     {
     case QUEST_STATUS_COMPLETE:
+        out << "Quest ";
         TurnInQuest(quest, object, out);
+        out << ": " << chat->FormatQuest(quest);
         break;
     case QUEST_STATUS_INCOMPLETE:
-        out << "|cffff0000Incompleted|r";
+        out << PlayerbotTextMgr::instance().GetBotTextOrDefault("quest_status_incomplete",
+                                                                 "I have not completed the quest %quest", placeholders);
         break;
     case QUEST_STATUS_NONE:
-        out << "|cff00ff00Available|r";
+        out << PlayerbotTextMgr::instance().GetBotTextOrDefault("quest_status_available",
+                                                                 "Quest %quest available", placeholders);
         break;
     case QUEST_STATUS_FAILED:
-        out << "|cffff0000Failed|r";
+        out << PlayerbotTextMgr::instance().GetBotTextOrDefault("quest_status_failed",
+                                                                 "I have failed the quest %quest", placeholders);
         break;
     case QUEST_STATUS_REWARDED:
-        out << "|cffff0000Rewarded|r";
+        out << PlayerbotTextMgr::instance().GetBotTextOrDefault("quest_status_completed",
+                                                                 "I have completed the quest %quest", placeholders);
         break;
     default:
         break;
     }
 
-    out << ": " << chat->FormatQuest(quest);
     botAI->TellMaster(out);
     return true;
 }

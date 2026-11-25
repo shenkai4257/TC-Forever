@@ -1,3 +1,6 @@
+-- Obsolete: this file belongs to the old standalone-database updater setup.
+-- The module tables now live in the world/characters databases. See sql/README.md.
+
 -- --------------------------------------------------------
 -- Хост:                         127.0.0.1
 -- Версия сервера:               10.6.4-MariaDB - mariadb.org binary distribution

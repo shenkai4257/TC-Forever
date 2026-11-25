@@ -32,20 +32,17 @@ struct ClassSpecs
     std::array<uint32, 4> specs;   // retail ChrSpecialization ids, 0 = unused
 };
 
-constexpr std::array<ClassSpecs, 13> kRetailSpecs = {{
+// The nine classes of Classic 1.60 only; the retail table also carries the later classes.
+constexpr std::array<ClassSpecs, 9> kRetailSpecs = {{
     { CLASS_WARRIOR,      { 71, 72, 73, 0 } },
     { CLASS_PALADIN,      { 65, 66, 70, 0 } },
     { CLASS_HUNTER,       { 253, 254, 255, 0 } },
     { CLASS_ROGUE,        { 259, 260, 261, 0 } },
     { CLASS_PRIEST,       { 256, 257, 258, 0 } },
-    { CLASS_DEATH_KNIGHT, { 250, 251, 252, 0 } },
     { CLASS_SHAMAN,       { 262, 263, 264, 0 } },
     { CLASS_MAGE,         { 62, 63, 64, 0 } },
     { CLASS_WARLOCK,      { 265, 266, 267, 0 } },
-    { CLASS_MONK,         { 268, 269, 270, 0 } },
     { CLASS_DRUID,        { 102, 103, 104, 105 } },
-    { CLASS_DEMON_HUNTER, { 577, 581, 1480, 0 } },
-    { CLASS_EVOKER,       { 1467, 1468, 1473, 0 } },
 }};
 
 // Vanilla talent spells (rank 1 ids) that identify a talent build, checked in

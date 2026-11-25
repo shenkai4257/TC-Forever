@@ -25,9 +25,9 @@ bool AcceptInvitationAction::Execute(Event /*event*/)
 
     if (!botAI->GetSecurity()->CheckLevelFor(PLAYERBOT_SECURITY_INVITE, false, inviter))
     {
-        WorldPacket data(SMSG_GROUP_DECLINE, 10);
-        data << bot->GetName();
-        inviter->SendDirectMessage(&data);
+        // 12.x sends the decliner's name with a 9 bit length prefix (WorldPackets::Party::GroupDecline)
+        WorldPackets::Party::GroupDecline decline(bot->GetName());
+        inviter->SendDirectMessage(decline.Write());
         bot->UninviteFromGroup();
         return false;
     }
@@ -50,7 +50,7 @@ bool AcceptInvitationAction::Execute(Event /*event*/)
     // PlayerbotRepository::instance().Save(botAI);
 
     botAI->ResetStrategies();
-    botAI->ChangeStrategy("+follow,-lfg,-bg", BOT_STATE_NON_COMBAT);
+    botAI->ChangeStrategy("+follow", BOT_STATE_NON_COMBAT);
     botAI->Reset();
 
     botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("hello", "Hello", {}));

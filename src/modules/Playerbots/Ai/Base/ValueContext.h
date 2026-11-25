@@ -75,7 +75,6 @@
 #include "PositionValue.h"
 #include "PossibleRpgTargetsValue.h"
 #include "PossibleTargetsValue.h"
-#include "PvpValues.h"
 #include "QuestValues.h"
 #include "RTSCValues.h"
 #include "RandomBotUpdateValue.h"
@@ -96,7 +95,6 @@
 #include "TradeValues.h"
 #include "Value.h"
 #include "WaitForAttackTimeValue.h"
-#include "WsgRouteState.h"
 
 class PlayerbotAI;
 
@@ -255,19 +253,6 @@ public:
         creators["party member without food"] = &ValueContext::party_member_without_food;
         creators["party member without water"] = &ValueContext::party_member_without_water;
         creators["death count"] = &ValueContext::death_count;
-
-        creators["arena type"] = &ValueContext::arena_type;
-        // registered again after the battleground cleanup removed them while the value
-        // classes and their users (BattleGroundJoinAction, PlayerbotAI::ChangeEngine) stayed.
-        creators["bg type"] = &ValueContext::bg_type;
-        creators["bg role"] = &ValueContext::bg_role;
-        creators["bg master"] = &ValueContext::bg_master;
-        creators["wsg route"] = &ValueContext::wsg_route;
-        creators["wsg team assignment"] = &ValueContext::wsg_team_assignment;
-        creators["wsg support target"] = &ValueContext::wsg_support_target;
-        creators["wsg follow carrier"] = &ValueContext::wsg_follow_carrier;
-        creators["enemy flag carrier"] = &ValueContext::enemy_fc;
-        creators["team flag carrier"] = &ValueContext::team_fc;
 
         creators["home bind"] = &ValueContext::home_bind;
         creators["last long move"] = &ValueContext::last_long_move;
@@ -511,20 +496,6 @@ private:
     static UntypedValue* pull_target(PlayerbotAI* botAI) { return new PullTargetValue(botAI); }
     static UntypedValue* pull_strategy_target(PlayerbotAI* botAI) { return new PullStrategyTargetValue(botAI); }
     static UntypedValue* focus_heal_targets(PlayerbotAI* botAI) { return new FocusHealTargetValue(botAI); }
-
-    static UntypedValue* wsg_team_assignment(PlayerbotAI* botAI) { return new WsgTeamAssignmentValue(botAI); }
-    static UntypedValue* wsg_support_target(PlayerbotAI* botAI) { return new WsgSupportTargetValue(botAI); }
-    static UntypedValue* wsg_follow_carrier(PlayerbotAI* botAI)
-    {
-        return new ManualSetValue<ObjectGuid>(botAI, ObjectGuid::Empty, "wsg follow carrier");
-    }
-    static UntypedValue* arena_type(PlayerbotAI* botAI) { return new ArenaTypeValue(botAI); }
-    static UntypedValue* bg_type(PlayerbotAI* botAI) { return new BgTypeValue(botAI); }
-    static UntypedValue* bg_role(PlayerbotAI* botAI) { return new BgRoleValue(botAI); }
-    static UntypedValue* bg_master(PlayerbotAI* botAI) { return new BgMasterValue(botAI); }
-    static UntypedValue* wsg_route(PlayerbotAI* botAI) { return new WsgRouteStateValue(botAI); }
-    static UntypedValue* team_fc(PlayerbotAI* botAI) { return new FlagCarrierValue(botAI, true, true); }
-    static UntypedValue* enemy_fc(PlayerbotAI* botAI) { return new FlagCarrierValue(botAI, false, true); }
 
     static UntypedValue* last_long_move(PlayerbotAI* botAI) { return new LastLongMoveValue(botAI); }
     static UntypedValue* home_bind(PlayerbotAI* botAI) { return new HomeBindValue(botAI); }

@@ -12,6 +12,7 @@
 #include "Chat.h"
 #include "ChatHelper.h"
 #include "Event.h"
+#include "ItemPacketsCommon.h"
 #include "ItemTemplate.h"
 #include "ObjectGuid.h"
 #include "ObjectMgr.h"
@@ -276,20 +277,9 @@ bool QuestUpdateCompleteAction::Execute(Event event)
     uint32 questId = 0;
     p >> questId;
 
-    p.print_storage();
-    // TC_LOG_INFO("playerbots", "Packet: empty{} questId{}", p.empty(), questId);
-
     Quest const* qInfo = sObjectMgr->GetQuestTemplate(questId);
     if (qInfo)
     {
-        // std::map<std::string, std::string> placeholders;
-        // placeholders["%quest_link"] = format;
-
-        // if (botAI->HasStrategy("debug quest", BotState::BOT_STATE_NON_COMBAT) || botAI->HasStrategy("debug rpg", BotState::BOT_STATE_COMBAT))
-        // {
-            //     TC_LOG_INFO("playerbots", "{} => Quest [ {} ] completed", bot->GetName(), qInfo->GetLogTitle());
-            //     bot->Say("Quest [ " + format + " ] completed", LANG_UNIVERSAL);
-            // }
         const auto format = ChatHelper::FormatQuest(qInfo);
         if (botAI->GetMaster())
             botAI->TellMasterNoFacing("Quest completed " + format);
@@ -309,73 +299,45 @@ bool QuestUpdateAddKillAction::Execute(Event event)
     WorldPacket p(event.getPacket());
     p.rpos(0);
 
-    uint32 entry, questId, available, required;
-    p >> questId >> entry >> available >> required;
-    // TC_LOG_INFO("playerbots", "[New rpg] Quest {} -> Creature {} ({}/{})", questId, entry, available, required);
+    // 12.x layout (WorldPackets::Quest::QuestUpdateAddCredit::Write): victim, quest id, object id,
+    // count, required, objective type. The object type is its own field now (3.3.5 set bit 31 of the id).
+    ObjectGuid victim;
+    int32 questId, entry;
+    uint16 count, required;
+    uint32 objectiveType;
+    p >> victim >> questId >> entry >> count >> required >> objectiveType;
+    uint32 const available = count;
+    uint32 const requiredCount = required;
+
     Quest const* qInfo = sObjectMgr->GetQuestTemplate(questId);
-    if (qInfo && (entry & 0x80000000))
+    if (qInfo && objectiveType == QUEST_OBJECTIVE_GAMEOBJECT)
     {
-        entry &= 0x7FFFFFFF;
-        GameObjectTemplate const* info = sObjectMgr->GetGameObjectTemplate(entry);
+        GameObjectTemplate const* info = sObjectMgr->GetGameObjectTemplate(uint32(entry));
         if (info)
         {
-            std::string infoName = PlayerbotAI::GetLocalizedGameObjectName(entry);
-            BroadcastHelper::BroadcastQuestUpdateAddKill(botAI, bot, qInfo, available, required, infoName);
+            std::string infoName = PlayerbotAI::GetLocalizedGameObjectName(uint32(entry));
+            BroadcastHelper::BroadcastQuestUpdateAddKill(botAI, bot, qInfo, available, requiredCount, infoName);
             if (botAI->GetMaster())
             {
                 std::ostringstream out;
-                out << infoName << " " << available << "/" << required << " " << ChatHelper::FormatQuest(qInfo);
+                out << infoName << " " << available << "/" << requiredCount << " " << ChatHelper::FormatQuest(qInfo);
                 botAI->TellMasterNoFacing(out.str());
             }
         }
     }
     else if (qInfo)
     {
-        CreatureTemplate const* info = sObjectMgr->GetCreatureTemplate(entry);
+        CreatureTemplate const* info = sObjectMgr->GetCreatureTemplate(uint32(entry));
         if (info)
         {
-            std::string infoName = PlayerbotAI::GetLocalizedCreatureName(entry);
-            BroadcastHelper::BroadcastQuestUpdateAddKill(botAI, bot, qInfo, available, required, infoName);
+            std::string infoName = PlayerbotAI::GetLocalizedCreatureName(uint32(entry));
+            BroadcastHelper::BroadcastQuestUpdateAddKill(botAI, bot, qInfo, available, requiredCount, infoName);
             if (botAI->GetMaster())
             {
                 std::ostringstream out;
-                out << infoName << " " << available << "/" << required << " " << ChatHelper::FormatQuest(qInfo);
+                out << infoName << " " << available << "/" << requiredCount << " " << ChatHelper::FormatQuest(qInfo);
                 botAI->TellMasterNoFacing(out.str());
             }
-        }
-    }
-    return false;
-}
-
-bool QuestUpdateAddItemAction::Execute(Event event)
-{
-    WorldPacket p(event.getPacket());
-    p.rpos(0);
-
-    uint32 itemId, count;
-    p >> itemId >> count;
-
-    auto const* itemPrototype = sObjectMgr->GetItemTemplate(itemId);
-    if (itemPrototype)
-    {
-        std::map<std::string, std::string> placeholders;
-        placeholders["%item_link"] = botAI->GetChatHelper()->FormatItem(itemPrototype);
-        uint32 availableItemsCount = botAI->GetInventoryItemsCountWithId(itemId);
-        placeholders["%quest_obj_available"] = std::to_string(availableItemsCount);
-
-        for (auto const& pair : botAI->GetCurrentQuestsRequiringItemId(itemId))
-        {
-            placeholders["%quest_link"] = chat->FormatQuest(pair.first);
-            uint32 requiredItemsCount = pair.second;
-            placeholders["%quest_obj_required"] = std::to_string(requiredItemsCount);
-            if (botAI->HasStrategy("debug quest", BotState::BOT_STATE_COMBAT) || botAI->HasStrategy("debug quest", BotState::BOT_STATE_NON_COMBAT))
-            {
-                const auto text = PlayerbotTextMgr::instance().GetBotText("%quest_link - %item_link %quest_obj_available/%quest_obj_required", placeholders);
-                botAI->Say(text);
-                TC_LOG_INFO("playerbots", "{} => {}", bot->GetName(), text);
-            }
-
-            BroadcastHelper::BroadcastQuestUpdateAddItem(botAI, bot, pair.first, availableItemsCount, requiredItemsCount, itemPrototype);
         }
     }
     return false;
@@ -384,13 +346,22 @@ bool QuestUpdateAddItemAction::Execute(Event event)
 bool QuestItemPushResultAction::Execute(Event event)
 {
     WorldPacket packet = event.getPacket();
+    packet.rpos(0);
+
+    // 12.x layout (WorldPackets::Item::ItemPushResult::Write): player, slot, slot in bag, the item
+    // instance, proxy item id, quantity pushed, quantity in the inventory, ...
     ObjectGuid guid;
-    uint32 received, created, sendChatMessage, itemSlot, itemEntry, itemSuffixFactory, count, itemCount;
-    uint8 bagSlot;
-    int32 itemRandomPropertyId;
-    packet >> guid >> received >> created >> sendChatMessage;
-    packet >> bagSlot >> itemSlot >> itemEntry >> itemSuffixFactory >> itemRandomPropertyId;
+    packet >> guid;
+    packet.read_skip<uint8_t>();        // Slot
+    packet.read_skip<int32_t>();        // SlotInBag
+    WorldPackets::Item::ItemInstance item;
+    packet >> item;
+    packet.read_skip<int32_t>();        // ProxyItemID
+    int32 count;
+    int32 itemCount;
     packet >> count >> itemCount;
+
+    uint32 const itemEntry = item.ItemID;
 
     if (guid != bot->GetGUID())
         return false;
@@ -424,12 +395,6 @@ bool QuestItemPushResultAction::Execute(Event event)
         }
     }
 
-    return false;
-}
-
-bool QuestUpdateFailedAction::Execute(Event /*event*/)
-{
-    //opcode SMSG_QUESTUPDATE_FAILED is never sent...(yet?)
     return false;
 }
 

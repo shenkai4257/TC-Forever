@@ -54,20 +54,6 @@ public:
     bool Execute(Event event) override;
 };
 
-class QuestUpdateAddItemAction : public Action
-{
-public:
-    QuestUpdateAddItemAction(PlayerbotAI* botAI) : Action(botAI, "quest update add item") {}
-    bool Execute(Event event) override;
-};
-
-class QuestUpdateFailedAction : public Action
-{
-public:
-    QuestUpdateFailedAction(PlayerbotAI* botAI) : Action(botAI, "quest update failed") {}
-    bool Execute(Event event) override;
-};
-
 class QuestUpdateFailedTimerAction : public Action
 {
 public:

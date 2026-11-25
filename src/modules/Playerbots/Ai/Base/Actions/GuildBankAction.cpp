@@ -17,7 +17,7 @@ bool GuildBankAction::Execute(Event event)
 
     if (!bot->GetGuildId() || (GetMaster() && GetMaster()->GetGuildId() != bot->GetGuildId()))
     {
-        botAI->TellMaster("I'm not in your guild!");
+        botAI->TellMaster(PlayerbotTextMgr::instance().GetBotText("chat_guild_bank_not_member", {}));
         return false;
     }
 
@@ -31,7 +31,7 @@ bool GuildBankAction::Execute(Event event)
         return Execute(text, go);
     }
 
-    botAI->TellMaster("Cannot find the guild bank nearby");
+    botAI->TellMaster(PlayerbotTextMgr::instance().GetBotText("chat_guild_bank_not_nearby", {}));
     return false;
 }
 

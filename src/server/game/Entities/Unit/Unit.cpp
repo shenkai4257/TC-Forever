@@ -12294,10 +12294,6 @@ void Unit::SetMeleeAnimKitId(uint16 animKitId)
             }
         }
 
-        // Fires for kill-credit holders (pets, totems, tapped kills), unlike OnCreatureKill which
-        // only fires when the player itself dealt the killing blow.
-        if (player)
-            sScriptMgr->OnPlayerCreatureKillCredit(player, creature);
     }
 
     // outdoor pvp things, do these after setting the death state, else the player activity notify won't work... doh...

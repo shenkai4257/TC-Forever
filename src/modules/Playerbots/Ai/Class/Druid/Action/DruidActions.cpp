@@ -68,71 +68,11 @@ bool CastThornsOnMainTankAction::Execute(Event event)
     return PrepareThornsTarget(botAI, GetTarget()) && BuffOnMainTankAction::Execute(event);
 }
 
-bool CastWrathAction::isUseful()
-{
-    time_t now = time(nullptr);
-    time_t solarTime = context->GetValue<time_t>("eclipse solar proc time")->Get();
-    time_t lunarTime = context->GetValue<time_t>("eclipse lunar proc time")->Get();
+// Classic 1.60 has no Eclipse mechanic and the eclipse proc-time values were removed with the
+// WotLK talent cleanup; both nukes are plain CastSpellAction checks.
+bool CastWrathAction::isUseful() { return CastSpellAction::isUseful(); }
 
-    // --- Update Solar Eclipse tracking ---
-    // Wrath is selected during Solar Eclipse (eclipse trigger at 20.0f), so we reliably see it here.
-    if (bot->HasAura(SPELL_ECLIPSE_SOLAR) && !solarTime)
-        context->GetValue<time_t>("eclipse solar proc time")->Set(now);
-    // Lunar procced — Solar fishing window is over, new cycle begins
-    if (bot->HasAura(SPELL_ECLIPSE_LUNAR) && solarTime)
-        context->GetValue<time_t>("eclipse solar proc time")->Set(0);
-    // 30 s cooldown window expired
-    if (solarTime && (now - solarTime) >= 30)
-        context->GetValue<time_t>("eclipse solar proc time")->Set(0);
-
-    // --- Update Lunar Eclipse tracking (belt-and-suspenders in case Starfire isn't evaluated) ---
-    if (bot->HasAura(SPELL_ECLIPSE_LUNAR) && !lunarTime)
-        context->GetValue<time_t>("eclipse lunar proc time")->Set(now);
-    // Solar procced — Lunar fishing window is over
-    if (bot->HasAura(SPELL_ECLIPSE_SOLAR) && lunarTime)
-        context->GetValue<time_t>("eclipse lunar proc time")->Set(0);
-    if (lunarTime && (now - lunarTime) >= 30)
-        context->GetValue<time_t>("eclipse lunar proc time")->Set(0);
-
-    // Block Wrath while in Lunar Eclipse / post-Lunar fishing window
-    if (context->GetValue<time_t>("eclipse lunar proc time")->Get())
-        return false;
-
-    return CastSpellAction::isUseful();
-}
-
-bool CastStarfireAction::isUseful()
-{
-    time_t now = time(nullptr);
-    time_t solarTime = context->GetValue<time_t>("eclipse solar proc time")->Get();
-    time_t lunarTime = context->GetValue<time_t>("eclipse lunar proc time")->Get();
-
-    // --- Update Lunar Eclipse tracking ---
-    // Starfire is selected during Lunar Eclipse (eclipse trigger at 20.0f), so we reliably see it here.
-    if (bot->HasAura(SPELL_ECLIPSE_LUNAR) && !lunarTime)
-        context->GetValue<time_t>("eclipse lunar proc time")->Set(now);
-    // Solar procced — Lunar fishing window is over, new cycle begins
-    if (bot->HasAura(SPELL_ECLIPSE_SOLAR) && lunarTime)
-        context->GetValue<time_t>("eclipse lunar proc time")->Set(0);
-    // 30 s cooldown window expired
-    if (lunarTime && (now - lunarTime) >= 30)
-        context->GetValue<time_t>("eclipse lunar proc time")->Set(0);
-
-    // --- Update Solar Eclipse tracking (belt-and-suspenders in case Wrath isn't evaluated) ---
-    if (bot->HasAura(SPELL_ECLIPSE_SOLAR) && !solarTime)
-        context->GetValue<time_t>("eclipse solar proc time")->Set(now);
-    // Lunar procced — Solar fishing window is over
-    if (bot->HasAura(SPELL_ECLIPSE_LUNAR) && solarTime)
-        context->GetValue<time_t>("eclipse solar proc time")->Set(0);
-    if (solarTime && (now - solarTime) >= 30)
-        context->GetValue<time_t>("eclipse solar proc time")->Set(0);
-
-    // Block Starfire while in Solar Eclipse / post-Solar fishing window
-    if (context->GetValue<time_t>("eclipse solar proc time")->Get())
-        return false;
-
-    return CastSpellAction::isUseful();
-}
+bool CastStarfireAction::isUseful() { return CastSpellAction::isUseful(); }
 
 Value<Unit*>* CastEntanglingRootsCcAction::GetTargetValue()
 {

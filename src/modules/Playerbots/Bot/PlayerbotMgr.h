@@ -47,7 +47,6 @@ public:
 
     void UpdateAIInternal([[maybe_unused]] uint32 elapsed, [[maybe_unused]] bool minimal = false) override{};
     void UpdateSessions();
-    void HandleBotPackets(WorldSession* session);
     static void UpdatePendingLogins();  // world thread, once per tick
     static void ClearPendingLogins();   // shutdown, outside any callback
 

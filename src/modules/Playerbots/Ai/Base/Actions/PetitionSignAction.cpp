@@ -8,6 +8,7 @@
 #include "FieldHelper.h"
 #include "PetitionPackets.h"
 #include "Event.h"
+#include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 
 bool PetitionSignAction::Execute(Event event)
@@ -34,13 +35,13 @@ bool PetitionSignAction::Execute(Event event)
 
     if (bot->GetGuildId())
     {
-        botAI->TellError("Sorry, I am in a guild already");
+        botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_guild_already_member", {}));
         accept = false;
     }
 
     if (bot->GetGuildIdInvited())
     {
-        botAI->TellError("Sorry, I am invited to a guild already");
+        botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_guild_already_invited", {}));
         accept = false;
     }
 
@@ -66,7 +67,7 @@ bool PetitionSignAction::Execute(Event event)
     sign.PetitionGUID = petitionGuid;
     sign.Choice = 0;
     bot->GetSession()->HandleSignPetition(sign);
-    bot->Say("Thanks for the invite!", LANG_UNIVERSAL);
+    bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_guild_invite_thanks", {}), LANG_UNIVERSAL);
     TC_LOG_INFO("playerbots", "Bot {} accepts guild invite", bot->GetGUID().ToString().c_str(), bot->GetName().c_str());
     return true;
 }

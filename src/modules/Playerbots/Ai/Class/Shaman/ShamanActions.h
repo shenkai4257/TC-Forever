@@ -203,7 +203,6 @@ public:
         CastSpellAction(botAI, "lightning bolt") {}
 };
 
-inline constexpr uint32 SPELL_GLYPH_OF_THUNDERSTORM = 62132;
 
 
 class CastLavaBurstAction : public CastSpellAction

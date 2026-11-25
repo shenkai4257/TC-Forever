@@ -577,7 +577,6 @@ void WorldUpdateLoop()
     CharacterDatabase.WarnAboutSyncQueries(true);
     WorldDatabase.WarnAboutSyncQueries(true);
     HotfixDatabase.WarnAboutSyncQueries(true);
-    sScriptMgr->OnDatabaseWarnAboutSyncQueries(true);
 
     ///- While we have not World::m_stopEvent, update the world
     while (!World::IsStopped())
@@ -614,8 +613,6 @@ void WorldUpdateLoop()
     CharacterDatabase.WarnAboutSyncQueries(false);
     WorldDatabase.WarnAboutSyncQueries(false);
     HotfixDatabase.WarnAboutSyncQueries(false);
-    sScriptMgr->OnDatabaseWarnAboutSyncQueries(false);
-    sScriptMgr->OnModuleDatabasesClosing();
 }
 
 void SignalHandler(boost::system::error_code const& error, int /*signalNumber*/)
@@ -691,14 +688,8 @@ bool StartDB()
         .AddDatabase(WorldDatabase, "World")
         .AddDatabase(HotfixDatabase, "Hotfix");
 
-    // Modules own their database pools: let them open before the loader runs and announce
-    // the update flags once the core pools are ready.
-    sScriptMgr->OnModuleDatabasesLoading();
-
     if (!loader.Load())
         return false;
-
-    sScriptMgr->OnAfterDatabasesLoaded(DatabaseLoader::DATABASE_NONE);
 
     ///- Insert version info into DB
     WorldDatabase.PExecute("UPDATE version SET core_version = '{}', core_revision = '{}'", GitRevision::GetFullVersion(), GitRevision::GetHash());        // One-time query
@@ -711,7 +702,6 @@ bool StartDB()
 
 void StopDB()
 {
-    sScriptMgr->OnModuleDatabasesClosing();
     HotfixDatabase.Close();
     WorldDatabase.Close();
     CharacterDatabase.Close();

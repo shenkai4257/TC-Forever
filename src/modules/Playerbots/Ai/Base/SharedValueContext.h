@@ -10,7 +10,6 @@
 #include "LootValues.h"
 #include "NamedObjectContext.h"
 #include "PlayerbotAI.h"
-#include "PvpValues.h"
 #include "QuestValues.h"
 
 class SharedValueContext : public NamedObjectContext<UntypedValue>
@@ -54,7 +53,6 @@ public:
 private:
     SharedValueContext() : NamedObjectContext(true)
     {
-        creators["bg masters"] = &SharedValueContext::bg_masters;
         creators["drop map"] = &SharedValueContext::drop_map;
         creators["item drop list"] = &SharedValueContext::item_drop_list;
         creators["entry loot list"] = &SharedValueContext::entry_loot_list;
@@ -70,7 +68,6 @@ private:
     SharedValueContext(SharedValueContext&&) = delete;
     SharedValueContext& operator=(SharedValueContext&&) = delete;
 
-    static UntypedValue* bg_masters(PlayerbotAI* botAI) { return new BgMastersValue(botAI); }
     static UntypedValue* drop_map(PlayerbotAI* botAI) { return new DropMapValue(botAI); }
     static UntypedValue* item_drop_list(PlayerbotAI* botAI) { return new ItemDropListValue(botAI); }
     static UntypedValue* entry_loot_list(PlayerbotAI* botAI) { return new EntryLootListValue(botAI); }

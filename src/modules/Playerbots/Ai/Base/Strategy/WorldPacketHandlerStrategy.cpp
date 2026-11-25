@@ -34,7 +34,6 @@ void WorldPacketHandlerStrategy::InitTriggers(std::vector<TriggerNode*>& trigger
                                                                           NextAction("taxi", relevance) }));
     triggers.push_back(new TriggerNode("taxi done", { NextAction("taxi", relevance) }));
     triggers.push_back(new TriggerNode("trade status", { NextAction("accept trade", relevance), NextAction("equip upgrades packet action", relevance) }));
-    triggers.push_back(new TriggerNode("trade status extended", { NextAction("trade status extended", relevance) }));
     triggers.push_back(new TriggerNode("area trigger", { NextAction("reach area trigger", relevance) }));
     triggers.push_back(new TriggerNode("within area trigger", { NextAction("area trigger", relevance) }));
     triggers.push_back(new TriggerNode("loot response", { NextAction("store loot", relevance) }));
@@ -50,7 +49,6 @@ void WorldPacketHandlerStrategy::InitTriggers(std::vector<TriggerNode*>& trigger
     triggers.push_back(new TriggerNode("guild invite", { NextAction("guild accept", relevance) }));
     triggers.push_back(new TriggerNode("petition offer", { NextAction("petition sign", relevance) }));
     //triggers.push_back(new TriggerNode("no non bot players around", { NextAction("delay", relevance) }));
-    triggers.push_back(new TriggerNode("bg status", { NextAction("bg status", relevance) }));
     triggers.push_back(new TriggerNode("xpgain", { NextAction("xp gain", relevance) }));
     triggers.push_back(
         new TriggerNode("levelup", { NextAction("auto maintenance on levelup", relevance + 3) }));
@@ -79,12 +77,9 @@ WorldPacketHandlerStrategy::WorldPacketHandlerStrategy(PlayerbotAI* botAI) : Pas
     supported.push_back("uninvite");
     supported.push_back("random bot update");
     supported.push_back("inventory change failure");
-    supported.push_back("bg status");
 
     // quests
     supported.push_back("quest update add kill");
-    // supported.push_back("quest update add item");
-    supported.push_back("quest update failed");
     supported.push_back("quest update failed timer");
     supported.push_back("quest update complete");
     supported.push_back("confirm quest");

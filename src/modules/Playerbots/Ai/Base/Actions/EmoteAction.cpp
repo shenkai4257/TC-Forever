@@ -7,6 +7,7 @@
 #include "ChatPackets.h"
 #include "EmoteAction.h"
 #include "Event.h"
+#include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
 
@@ -167,7 +168,7 @@ bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
             if (botAI->GetMaster() == source)
             {
                 botAI->ChangeStrategy("-follow,+stay", BOT_STATE_NON_COMBAT);
-                botAI->TellMasterNoFacing("Fine.. I'll stay right here..");
+                botAI->TellMasterNoFacing(PlayerbotTextMgr::instance().GetBotText("chat_emote_wait_here", {}));
             }
             break;
         case TEXT_EMOTE_BECKON:
@@ -175,7 +176,7 @@ bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
             if (botAI->GetMaster() == source)
             {
                 botAI->ChangeStrategy("+follow", BOT_STATE_NON_COMBAT);
-                botAI->TellMasterNoFacing("Wherever you go, I'll follow..");
+                botAI->TellMasterNoFacing(PlayerbotTextMgr::instance().GetBotText("chat_emote_follow_anywhere", {}));
             }
             break;
         case TEXT_EMOTE_WAVE:
@@ -583,32 +584,32 @@ bool EmoteActionBase::ReceiveEmote(Player* source, uint32 emote, bool verbal)
             break;
         /*case TEXT_EMOTE_BADFEELING:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_QUESTION);
-            bot->Say("I'm just waiting for the ominous music now...", LANG_UNIVERSAL);
+            bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_emote_ominous_music", {}), LANG_UNIVERSAL);
             break;
         case TEXT_EMOTE_MAP:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_NO);
-            bot->Say("Noooooooo.. you just couldn't ask for directions, huh?", LANG_UNIVERSAL);
+            bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_emote_ask_directions", {}), LANG_UNIVERSAL);
             break;
         case TEXT_EMOTE_IDEA:
         case TEXT_EMOTE_THINK:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_NO);
-            bot->Say("Oh boy.. another genius idea...", LANG_UNIVERSAL);
+            bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_emote_genius_idea", {}), LANG_UNIVERSAL);
             break;
         case TEXT_EMOTE_OFFER:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_NO);
-            bot->Say("No thanks.. I had some back at the last village", LANG_UNIVERSAL);
+            bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_emote_no_thanks_village", {}), LANG_UNIVERSAL);
             break;
         case TEXT_EMOTE_PET:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_ROAR);
-            bot->Say("Do I look like a dog to you?!", LANG_UNIVERSAL);
+            bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_emote_look_like_dog", {}), LANG_UNIVERSAL);
             break;
         case TEXT_EMOTE_ROLLEYES:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_POINT);
-            bot->Say("Keep doing that and I'll roll those eyes right out of your head..", LANG_UNIVERSAL);
+            bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_emote_roll_eyes", {}), LANG_UNIVERSAL);
             break;
         case TEXT_EMOTE_SING:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_APPLAUD);
-            bot->Say("Lovely... just lovely..", LANG_UNIVERSAL);
+            bot->Say(PlayerbotTextMgr::instance().GetBotText("chat_emote_lovely", {}), LANG_UNIVERSAL);
             break;
         case TEXT_EMOTE_COVEREARS:
             bot->HandleEmoteCommand(EMOTE_ONESHOT_EXCLAMATION);
@@ -660,20 +661,20 @@ bool EmoteAction::Execute(Event event)
     if (!p.empty() && p.GetOpcode() == SMSG_TEXT_EMOTE)
     {
         isReact = true;
+        // 12.x layout: source, source account, emote id, sound index, target guid (the target is a
+        // guid now, 3.3.5 sent the target's name here)
         ObjectGuid source;
+        ObjectGuid sourceAccount;
+        ObjectGuid target;
         uint32 text_emote;
-        uint32 emote_num;
-        uint32 namlen;
-        std::string nam;
+        int32 soundIndex;
         p.rpos(0);
-        p >> source >> text_emote >> emote_num >> namlen;
-        if (namlen > 1)
-            p >> nam;
+        p >> source >> sourceAccount >> text_emote >> soundIndex >> target;
 
         pSource = ObjectAccessor::FindPlayer(source);
+        bool const targetedAtBot = target == bot->GetGUID();
         if (pSource && (pSource->GetGUID() != bot->GetGUID()) &&
-            ((urand(0, 1) && bot->HasInArc(static_cast<float>(M_PI), pSource, 10.0f)) ||
-             (namlen > 1 && strstri(bot->GetName().c_str(), nam.c_str()))))
+            ((urand(0, 1) && bot->HasInArc(static_cast<float>(M_PI), pSource, 10.0f)) || targetedAtBot))
         {
             /*TC_LOG_INFO("playerbots", "Bot {} {}:{} <{}> received SMSG_TEXT_EMOTE {} from player {} <{}>",
                 bot->GetGUID().ToString().c_str(), bot->GetTeamId() == TEAM_ALLIANCE ? "A" : "H", bot->GetLevel(),
@@ -686,10 +687,11 @@ bool EmoteAction::Execute(Event event)
     if (!p.empty() && p.GetOpcode() == SMSG_EMOTE)
     {
         isReact = true;
+        // 12.x layout: source guid first, then the emote id
         ObjectGuid source;
         uint32 emoteId;
         p.rpos(0);
-        p >> emoteId >> source;
+        p >> source >> emoteId;
 
         pSource = ObjectAccessor::FindPlayer(source);
         if (pSource && pSource != bot && ServerFacade::instance().GetDistance2d(bot, pSource) < sPlayerbotAIConfig.FarDistance &&

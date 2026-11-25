@@ -34,8 +34,7 @@ RoleProfile ResolveRoleProfile(Player* player)
     switch (player->GetClass())
     {
         case CLASS_WARRIOR:
-        case CLASS_DEATH_KNIGHT:
-            return PlayerbotAI::IsTank(player) ? ROLE_WARRIOR_DK_TANK : ROLE_PHYSICAL_DPS;
+            return PlayerbotAI::IsTank(player) ? ROLE_WARRIOR_TANK : ROLE_PHYSICAL_DPS;
         case CLASS_ROGUE:
             return ROLE_PHYSICAL_DPS;
         case CLASS_HUNTER:
@@ -309,11 +308,11 @@ namespace
     {
         uint8 auraMask = 0;
         for (uint8 i = 0; i < spell->GetEffects().size(); ++i)
-            if (spell->GetEffectOrDefault(SpellEffIndex(i)).IsAura())
+            if (GetEffectOrDefault(spell, SpellEffIndex(i)).IsAura())
                 auraMask |= 1 << i;
         for (uint8 i = 0; i < spell->GetEffects().size(); ++i)
             if ((auraMask & (1 << i)) && !member->IsHighestExclusiveAuraEffect(spell,
-                    spell->GetEffectOrDefault(SpellEffIndex(i)).ApplyAuraName, spell->GetEffectOrDefault(SpellEffIndex(i)).CalcValue(caster), auraMask))
+                    GetEffectOrDefault(spell, SpellEffIndex(i)).ApplyAuraName, GetEffectOrDefault(spell, SpellEffIndex(i)).CalcValue(caster), auraMask))
                 return true;
         return false;
     }

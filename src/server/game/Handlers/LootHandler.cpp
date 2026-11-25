@@ -222,7 +222,14 @@ void WorldSession::HandleLootOpcode(WorldPackets::Loot::LootUnit& packet)
 
     AELootCreatureCheck check(_player, packet.Unit);
     if (!check.IsValidLootTarget(lootTarget))
+    {
+        // Answer the request even when the corpse holds nothing for this player. A silent return
+        // leaves the client waiting and the character stuck in the looting pose - and a corpse whose
+        // remaining items belong to someone else (another player's quest item, a roll the winner has
+        // not collected yet) still looks lootable to everyone, so this is not a rare case.
+        _player->SendLootError(packet.Unit, lootTarget->GetGUID(), LOOT_ERROR_NO_LOOT);
         return;
+    }
 
     // interrupt cast
     if (GetPlayer()->IsNonMeleeSpellCast(false))

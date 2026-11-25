@@ -49,10 +49,6 @@ public:
     std::vector<uint32_t> const& GetOpeningSpells(uint32_t lockType) const;
     uint32_t GetRequiredRidingSkill(SpellInfo const* mountSpell) const;
     TradeSkillLinkData const* GetTradeSkillLinkData(uint32_t skillId) const;
-    // The 1.60 zhCN client data leaves SpellName's enUS slot empty for most spells, while the AI's
-    // action names are English; the class action names are mapped to their (lowest-rank) spell ids
-    // here so SpellIdValue does not depend on the client locale. 0 when the name is not mapped.
-    uint32_t GetSpellIdByName(std::string const& name) const;
 
 private:
     PlayerbotSpellRepository() = default;
@@ -71,7 +67,6 @@ private:
     std::map<uint32_t, std::vector<uint32_t>> _openingSpells;
     std::unordered_map<uint32_t, uint32_t> _ridingSkillByMount;
     std::unordered_map<uint32_t, TradeSkillLinkData> _tradeSkillLinks;
-    std::unordered_map<std::string, uint32_t> _spellIdByName;
 };
 
 #endif

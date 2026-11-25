@@ -9,31 +9,6 @@
 
 #include "Define.h"
 
-// 12.x replaced AC's BattlegroundQueueTypeId enum with a struct keyed by
-// (battlemaster list, type, rated, team size) and kept the name
-// BATTLEGROUND_QUEUE_NONE for its empty value. The ported module still uses the
-// dense AC indexes for its own tables; the values match AC's SharedDefines so
-// untouched source keeps its meaning. Map them to BattlegroundQueueTypeId at
-// the queue boundary, not here. EY/SA/IC/RB/arena sizes have no Classic map
-// and never resolve to a real queue. The AC "none" value lives here as
-// BATTLEGROUND_QUEUE_NONE_IDX to stay clear of the 12.x struct constant.
-// Defined before the include chain: headers below (RandomPlayerbotMgr.h) use it.
-constexpr uint8 BATTLEGROUND_QUEUE_NONE_IDX = 0;
-enum PlayerbotBattlegroundQueueTypeId : uint8
-{
-    BATTLEGROUND_QUEUE_AV        = 1,
-    BATTLEGROUND_QUEUE_WS        = 2,
-    BATTLEGROUND_QUEUE_AB        = 3,
-    BATTLEGROUND_QUEUE_EY        = 4,
-    BATTLEGROUND_QUEUE_SA        = 5,
-    BATTLEGROUND_QUEUE_IC        = 6,
-    BATTLEGROUND_QUEUE_RB        = 7,
-    BATTLEGROUND_QUEUE_2v2       = 8,
-    BATTLEGROUND_QUEUE_3v3       = 9,
-    BATTLEGROUND_QUEUE_5v5       = 10,
-    MAX_BATTLEGROUND_QUEUE_TYPES = 20,
-};
-
 // 12.x's trimmed SKILL_* list has no first aid line (the client still uses
 // skill line 129, which profession recipe items check).
 constexpr uint32 SKILL_FIRST_AID = 129;
@@ -59,6 +34,7 @@ constexpr uint8 KEYRING_SLOT_END = 0;
 #include "PlayerbotMgr.h"
 #include "RandomPlayerbotMgr.h"
 #include "SharedValueContext.h"
+#include "PlayerbotCompat.h"
 #include "Spell.h"
 #include "SpellMgr.h"
 #include "TravelNode.h"

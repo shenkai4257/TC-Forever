@@ -799,7 +799,7 @@ bool ItemUsageValue::IsItemNeededForUsefullSpell(ItemTemplate const* proto, bool
         if (SpellGivesSkillUp(spellId, bot))
             return true;
 
-        uint32 newItemId = spellInfo->GetEffectOrDefault(EFFECT_0).ItemType;
+        uint32 newItemId = GetEffectOrDefault(spellInfo, EFFECT_0).ItemType;
         if (newItemId && newItemId != proto->GetId())
         {
             ItemUsage usage = AI_VALUE2(ItemUsage, "item usage", newItemId);
@@ -1009,7 +1009,7 @@ std::vector<uint32> ItemUsageValue::SpellsUsingItem(uint32 itemId, Player* bot)
 
         // Profession spells are generic-family; only their crafting spells (CREATE_ITEM) count.
         // Class spells (poisons, oils, water walking, ...) consume reagents without creating items.
-        if (spellInfo->GetEffectOrDefault(EFFECT_0).Effect != SPELL_EFFECT_CREATE_ITEM &&
+        if (GetEffectOrDefault(spellInfo, EFFECT_0).Effect != SPELL_EFFECT_CREATE_ITEM &&
             spellInfo->SpellFamilyName == SPELLFAMILY_GENERIC)
             continue;
 

@@ -159,10 +159,10 @@ bool CastSpellAction::Execute(Event /*event*/)
             wstrToLower(wnamepart);
 
             if (!Utf8FitTo(spell, wnamepart) || spellInfo->GetEffects().empty() ||
-                spellInfo->GetEffectOrDefault(SpellEffIndex(0)).Effect != SPELL_EFFECT_CREATE_ITEM)
+                GetEffectOrDefault(spellInfo, SpellEffIndex(0)).Effect != SPELL_EFFECT_CREATE_ITEM)
                 continue;
 
-            uint32 itemId = spellInfo->GetEffectOrDefault(SpellEffIndex(0)).ItemType;
+            uint32 itemId = GetEffectOrDefault(spellInfo, SpellEffIndex(0)).ItemType;
             ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
             if (!proto || bot->CanUseItem(proto) != EQUIP_ERR_OK)
                 continue;
@@ -536,7 +536,6 @@ bool UseTrinketAction::UseTrinket(Item* item)
     uint8 slot = item->GetSlot();
     uint8 cast_count = 1;
     ObjectGuid item_guid = item->GetGUID();
-    uint32 glyphIndex = 0;
     uint8 castFlags = 0;
     uint32 targetFlag = TARGET_FLAG_NONE;
     uint32 spellId = 0;
@@ -589,7 +588,7 @@ bool UseTrinketAction::UseTrinket(Item* item)
             bool defensiveTankEffect = false;
             for (int i = 0; i < int(spellInfo->GetEffects().size()); i++)
             {
-                SpellEffectInfo const& effectInfo = spellInfo->GetEffectOrDefault(SpellEffIndex(i));
+                SpellEffectInfo const& effectInfo = GetEffectOrDefault(spellInfo, SpellEffIndex(i));
                 if (effectInfo.Effect == SPELL_EFFECT_APPLY_AURA)
                     applyAura = true;
 

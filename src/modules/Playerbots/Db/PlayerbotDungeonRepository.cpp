@@ -6,7 +6,8 @@
 
 #include "PlayerbotDungeonRepository.h"
 #include "FieldHelper.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "DatabaseEnv.h"
 #include "Field.h"
 #include "Log.h"
@@ -25,11 +26,15 @@ void PlayerbotDungeonRepository::LoadDungeonSuggestions()
     uint32 oldMSTime = getMSTime();
 
     uint32 count = 0;
-    auto statement = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_DUNGEON_SUGGESTION);
     uint8 const expansion = sWorld->getIntConfig(CONFIG_EXPANSION);
-    PlayerbotSetData(statement, 0, expansion);
 
-    PreparedQueryResult result = PlayerbotsDatabase.Query(statement);
+    QueryResult result = WorldDatabase.PQuery(
+        "SELECT d.`name`, d.`difficulty`, d.`min_level`, d.`max_level`, a.`abbrevation`, s.`strategy` "
+        "FROM playerbots_dungeon_suggestion_definition d "
+        "LEFT OUTER JOIN playerbots_dungeon_suggestion_abbrevation a ON d.slug = a.definition_slug "
+        "LEFT OUTER JOIN playerbots_dungeon_suggestion_strategy s ON d.slug = s.definition_slug "
+        "AND d.difficulty = s.difficulty WHERE d.expansion <= {}",
+        expansion);
     if (result)
     {
         do

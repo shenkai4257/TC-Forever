@@ -5,8 +5,6 @@
  */
 
 #include "TellPvpStatsAction.h"
-#include "ArenaTeam.h"
-#include "ArenaTeamMgr.h"
 #include "Event.h"
 #include "Language.h"
 #include "Player.h"
@@ -15,20 +13,6 @@
 #include "Playerbots.h"
 #include "SharedDefines.h"
 #include <map>
-
-namespace
-{
-    // 12.x dropped the ARENA_SLOT_* aliases; slots stay 0..2 (2v2, 3v3, 5v5).
-    inline char const* BracketName(uint8 slot)
-    {
-        switch (slot)
-        {
-            case 0:  return "2v2";
-            case 1:  return "3v3";
-            default: return "5v5";
-        }
-    }
-}
 
 bool TellPvpStatsAction::Execute(Event event)
 {
@@ -49,53 +33,14 @@ bool TellPvpStatsAction::Execute(Event event)
     if (!requester)
         return false;
 
-    // PVP currencies
-    std::map<std::string, std::string> currencyPlaceholders;
     // 1.60 has no arena points; classic honor lives in its own currency.
-    currencyPlaceholders["%arena_points"] = std::to_string(0);
+    std::map<std::string, std::string> currencyPlaceholders;
     currencyPlaceholders["%honor_points"] = std::to_string(bot->GetCurrencyQuantity(CURRENCY_HONOR_CLASSIC));
 
     std::string const currencyText = PlayerbotTextMgr::instance().GetBotTextOrDefault(
-        "pvp_currency",
-        "[PVP] Arena points: %arena_points | Honor Points: %honor_points",
-        currencyPlaceholders);
+        "pvp_currency", "[PVP] Honor Points: %honor_points", currencyPlaceholders);
 
     bot->Whisper(currencyText, LANG_UNIVERSAL, requester);
-
-    // Arena Teams by slot
-    bool anyTeam = false;
-    for (uint8 slot = 0; slot < MAX_ARENA_SLOT; ++slot)
-    {
-        uint32 const teamId = bot->GetArenaTeamId(slot);
-        if (!teamId)
-            continue;
-
-        if (ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(teamId))
-        {
-            anyTeam = true;
-            std::map<std::string, std::string> placeholders;
-            placeholders["%bracket"] = BracketName(slot);
-            placeholders["%team_name"] = team->GetName();
-            placeholders["%team_rating"] = std::to_string(team->GetRating());
-
-            std::string const teamText = PlayerbotTextMgr::instance().GetBotTextOrDefault(
-                "pvp_arena_team",
-                "[PVP] %bracket: <%team_name> (rating %team_rating)",
-                placeholders);
-
-            bot->Whisper(teamText, LANG_UNIVERSAL, requester);
-        }
-    }
-
-    if (!anyTeam)
-    {
-        std::string const noTeamText = PlayerbotTextMgr::instance().GetBotTextOrDefault(
-            "pvp_no_arena_team",
-            "[PVP] I have no Arena Team.",
-            std::map<std::string, std::string>());
-
-        bot->Whisper(noTeamText, LANG_UNIVERSAL, requester);
-    }
 
     return true;
 }

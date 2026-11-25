@@ -5,7 +5,8 @@
  */
 
 #include "CustomStrategy.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "Playerbots.h"
 #include <regex>
 #include <stdexcept>
@@ -91,11 +92,11 @@ void CustomStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
 
 void CustomStrategy::LoadActionLines(uint32 owner)
 {
-    PlayerbotsDatabasePreparedStatement* stmt =
-        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_CUSTOM_STRATEGY_BY_OWNER_AND_NAME);
-    PlayerbotSetData(stmt, 0, owner);
-    PlayerbotSetData(stmt, 1, qualifier);
-    PreparedQueryResult result = PlayerbotsDatabase.Query(stmt);
+    std::string escapedQualifier = qualifier;
+    CharacterDatabase.EscapeString(escapedQualifier);
+    QueryResult result = CharacterDatabase.PQuery(
+        "SELECT idx, action_line FROM playerbots_custom_strategy WHERE owner = {} AND name = '{}' ORDER BY idx",
+        owner, escapedQualifier);
     if (result)
     {
         do

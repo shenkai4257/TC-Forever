@@ -5,6 +5,7 @@
  */
 
 #include "ResetAiAction.h"
+#include "ClassicOpcodes.h"
 #include "Event.h"
 #include "Group.h"
 #include "ObjectGuid.h"
@@ -12,32 +13,47 @@
 #include "Playerbots.h"
 #include "WorldPacket.h"
 
+namespace
+{
+    // Member count of a 12.x SMSG_PARTY_UPDATE (WorldPackets::Party::PartyUpdate::Write): the header is
+    // fixed width but carries two extra fields from client build 70291 on, and the count that follows is
+    // the size of the variable-length member list.
+    void ReadPartyUpdateMemberCount(WorldPacket& packet, uint32& membersCount)
+    {
+        ObjectGuid partyGuid;
+        ObjectGuid leaderGuid;
+        packet.read_skip<uint16_t>();      // PartyFlags
+        packet.read_skip<uint8_t>();       // PartyIndex
+        packet.read_skip<uint8_t>();       // PartyType
+        packet.read_skip<int32_t>();       // MyIndex
+        packet >> partyGuid;               // PartyGUID
+        packet.read_skip<uint32_t>();      // SequenceNum
+
+        bool const build70291OrLater = ClassicOpcodes::IsBuild70291OrLater();
+        if (build70291OrLater)
+            packet.read_skip<int8_t>();    // Classic70291_BeforeLeader
+
+        packet >> leaderGuid;              // LeaderGUID
+        packet.read_skip<uint8_t>();       // LeaderFactionGroup
+        packet.read_skip<int32_t>();       // PingRestriction
+
+        if (build70291OrLater)
+            packet.read_skip<uint64_t>();  // Classic70291_BeforeMemberCount
+
+        packet >> membersCount;            // Size<uint32>(PlayerList)
+    }
+}
+
 bool ResetAiAction::Execute(Event event)
 {
     if (!event.getPacket().empty())
     {
         WorldPacket packet = event.getPacket();
+        packet.rpos(0);
         if (packet.GetOpcode() == SMSG_PARTY_UPDATE)
         {
-            uint8 groupType;
-            Group::MemberSlot slot;
-            packet >> groupType;
-            packet >> slot.group;
-            packet >> slot.flags;
-            packet >> slot.roles;
-            if (groupType & GROUP_FLAG_LFG)
-            {
-                uint8 status;
-                uint32 dungeon;
-                packet >> status;
-                packet >> dungeon;
-            }
-            ObjectGuid guid;
-            uint32 counter;
-            uint32 membersCount;
-            packet >> guid;
-            packet >> counter;
-            packet >> membersCount;
+            uint32 membersCount = 0;
+            ReadPartyUpdateMemberCount(packet, membersCount);
             if (membersCount != 0)
             {
                 return false;

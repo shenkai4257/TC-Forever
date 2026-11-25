@@ -300,47 +300,6 @@ class TC_GAME_API WorldScript : public ScriptObject
 
 // Classic 1.60 / mod-playerbots: a session script reacts to a real client session's
 // update tick (headless bot sessions are driven by the module itself).
-class TC_GAME_API SessionScript : public ScriptObject
-{
-    protected:
-        explicit SessionScript(char const* name) noexcept;
-
-    public:
-        ~SessionScript();
-
-        virtual void OnSessionUpdate(WorldSession* session, uint32 diff);
-};
-
-// Runs when a Player is destroyed, so modules owning per-player data (bot AI, manager)
-// can release it.
-class TC_GAME_API MiscScript : public ScriptObject
-{
-    protected:
-        explicit MiscScript(char const* name) noexcept;
-
-    public:
-        ~MiscScript();
-
-        virtual void OnDestructPlayer(Player* player);
-};
-
-// Module-owned database pools: loading/keep-alive/shutdown/revision hooks.
-class TC_GAME_API DatabaseScript : public ScriptObject
-{
-    protected:
-        explicit DatabaseScript(char const* name) noexcept;
-
-    public:
-        ~DatabaseScript();
-
-        virtual bool OnModuleDatabasesLoading();
-        virtual void OnAfterDatabasesLoaded(uint32 updateFlags);
-        virtual void OnModuleDatabasesKeepAlive();
-        virtual void OnModuleDatabasesClosing();
-        virtual void OnDatabaseWarnAboutSyncQueries(bool apply);
-        virtual void OnDatabaseGetDBRevision(std::map<std::string, std::string>& revisions);
-};
-
 class TC_GAME_API FormulaScript : public ScriptObject
 {
     protected:
@@ -796,7 +755,6 @@ class TC_GAME_API PlayerScript : public ScriptObject
 
         // Called when a creature dies and a player gets the kill credit (the killer's owner or the loot recipient).
         // Unlike OnCreatureKill this also fires for kills by pets, totems and for tapped creatures.
-        virtual void OnCreatureKillCredit(Player* player, Creature* killed);
 
         // Called before a petition signature is rejected because another character of the same account already
         // signed it. Scripts may clear alreadySigned to let a server-driven character (bot) sign anyway.
@@ -809,10 +767,6 @@ class TC_GAME_API PlayerScript : public ScriptObject
         virtual void OnLevelChanged(Player* player, uint8 oldLevel);
 
         // Called right before a player is logged out of the world.
-        virtual void OnPlayerBeforeLogout(Player* player);
-
-        // Called before experience is given (mod-playerbots uses it for bot XP rates).
-        virtual void OnPlayerGiveXP(Player* player, uint32& amount, Unit* victim, uint8 xpSource);
 
         // Called when a player's free talent points change (right before the change is applied)
         virtual void OnFreeTalentPointsChanged(Player* player, uint32 points);
@@ -925,9 +879,6 @@ class TC_GAME_API PlayerScript : public ScriptObject
 
         // Called when a player switches to a new zone
         virtual void OnUpdateZone(Player* player, uint32 newZone, uint32 newArea);
-
-        // Called after a player's Update tick finished (all timers, movement and auras already processed)
-        virtual void OnAfterUpdate(Player* player, uint32 updateTime);
 
         // Called when a player changes to a new map (after moving to new map)
         virtual void OnMapChanged(Player* player);
@@ -1281,23 +1232,6 @@ class TC_GAME_API ScriptMgr
         bool CanPacketReceive(WorldSession* session, WorldPacket const& packet);
         void OnPacketSend(WorldSession* session, WorldPacket const& packet);
 
-    public: /* SessionScript */
-
-        void OnSessionUpdate(WorldSession* session, uint32 diff);
-
-    public: /* MiscScript */
-
-        void OnDestructPlayer(Player* player);
-
-    public: /* DatabaseScript */
-
-        bool OnModuleDatabasesLoading();
-        void OnAfterDatabasesLoaded(uint32 updateFlags);
-        void OnModuleDatabasesKeepAlive();
-        void OnModuleDatabasesClosing();
-        void OnDatabaseWarnAboutSyncQueries(bool apply);
-        void OnDatabaseGetDBRevision(std::map<std::string, std::string>& revisions);
-
     public: /* WorldScript */
 
         void OnOpenStateChange(bool open);
@@ -1459,10 +1393,6 @@ class TC_GAME_API ScriptMgr
         void OnPlayerSave(Player* player);
         void OnPlayerBindToInstance(Player* player, Difficulty difficulty, uint32 mapid, bool permanent, uint8 extendState);
         void OnPlayerUpdateZone(Player* player, uint32 newZone, uint32 newArea);
-        void OnPlayerAfterUpdate(Player* player, uint32 updateTime);
-        void OnPlayerBeforeLogout(Player* player);
-        void OnPlayerGiveXP(Player* player, uint32& amount, Unit* victim, uint8 xpSource);
-        void OnPlayerCreatureKillCredit(Player* player, Creature* killed);
         void OnBeforePetitionSign(Player* player, ObjectGuid petitionGuid, bool& alreadySigned);
         void OnQuestStatusChange(Player* player, uint32 questId);
         void OnPlayerRepop(Player* player);

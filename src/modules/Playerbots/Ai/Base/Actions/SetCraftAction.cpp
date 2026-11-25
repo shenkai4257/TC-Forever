@@ -107,8 +107,8 @@ bool SetCraftAction::Execute(Event event)
         {
             for (uint8 i = 0; i < 3; ++i)
             {
-                if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_CREATE_ITEM &&
-                    itemId == spellInfo->GetEffectOrDefault(SpellEffIndex(i)).ItemType)
+                if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_CREATE_ITEM &&
+                    itemId == GetEffectOrDefault(spellInfo, SpellEffIndex(i)).ItemType)
                 {
                     for (uint32 x = 0; x < MAX_SPELL_REAGENTS; ++x)
                     {

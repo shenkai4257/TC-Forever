@@ -19,12 +19,4 @@ public:
     bool Execute(Event event) override;
 };
 
-class TellCastFailedAction : public Action
-{
-public:
-    TellCastFailedAction(PlayerbotAI* botAI) : Action(botAI, "tell cast failed") {}
-
-    bool Execute(Event event) override;
-};
-
 #endif

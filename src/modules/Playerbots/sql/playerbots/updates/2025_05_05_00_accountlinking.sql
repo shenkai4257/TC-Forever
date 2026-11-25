@@ -1,3 +1,5 @@
+-- Obsolete after the 2026-11-25 merge into the core databases. See sql/README.md.
+
 DROP TABLE IF EXISTS `playerbot_account_links`;
 
 CREATE TABLE `playerbot_account_links` (

@@ -224,7 +224,6 @@ bool PlayerbotAIConfig::Initialize()
                                            "976,35,392,2268,4161,4010,4317,4312,3649,3887,3958,3724,4080,3938,3754,3786,"
                                            "3973,4085,4086,4087,4088,251"),
         PvpProhibitedAreaIds);
-    FastReactInBG = sConfigMgr->GetBoolDefault("Playerbots.FastReactInBG", true);
     LoadList<std::vector<uint32>>(
         sConfigMgr->GetStringDefault("Playerbots.RandomBotQuestIds", "3802,5505,6502,7761,7848,10277,10285,11492,"
                                            "13188,13189,24499,24511,24710,24712"),
@@ -290,9 +289,6 @@ bool PlayerbotAIConfig::Initialize()
         sConfigMgr->GetIntDefault("Playerbots.MinRandomBotsPriceChangeInterval", 2 * HOUR);
     MaxRandomBotsPriceChangeInterval =
         sConfigMgr->GetIntDefault("Playerbots.MaxRandomBotsPriceChangeInterval", 48 * HOUR);
-    RandomBotJoinLfg = sConfigMgr->GetBoolDefault("Playerbots.RandomBotJoinLfg", true);
-    RandomBotJoinLfgOutleveledExpansion =
-        sConfigMgr->GetBoolDefault("Playerbots.RandomBotJoinLfgOutleveledExpansion", true);
 
     RestrictHealerDPS = sConfigMgr->GetBoolDefault("Playerbots.HealerDPSMapRestriction", false);
     LoadList<std::vector<uint32>>(
@@ -403,29 +399,6 @@ bool PlayerbotAIConfig::Initialize()
     ThunderfuryRepliesChance = sConfigMgr->GetIntDefault("Playerbots.ThunderfuryRepliesChance", 40);  // 0-100
     GuildRepliesRate = sConfigMgr->GetIntDefault("Playerbots.GuildRepliesRate", 100);                 // 0-100
 
-    RandomBotJoinBG = sConfigMgr->GetBoolDefault("Playerbots.RandomBotJoinBG", true);
-    RandomBotAutoJoinBG = sConfigMgr->GetBoolDefault("Playerbots.RandomBotAutoJoinBG", false);
-
-    RandomBotAutoJoinArenaBracket = sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinArenaBracket", 14);
-
-    RandomBotAutoJoinWSBrackets = sConfigMgr->GetStringDefault("Playerbots.RandomBotAutoJoinWSBrackets", "7");
-    RandomBotAutoJoinABBrackets = sConfigMgr->GetStringDefault("Playerbots.RandomBotAutoJoinABBrackets", "6");
-    RandomBotAutoJoinAVBrackets = sConfigMgr->GetStringDefault("Playerbots.RandomBotAutoJoinAVBrackets", "3");
-    RandomBotAutoJoinEYBrackets = sConfigMgr->GetStringDefault("Playerbots.RandomBotAutoJoinEYBrackets", "2");
-    RandomBotAutoJoinICBrackets = sConfigMgr->GetStringDefault("Playerbots.RandomBotAutoJoinICBrackets", "1");
-
-    RandomBotAutoJoinBGWSCount = sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGWSCount", 1);
-    RandomBotAutoJoinBGABCount = sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGABCount", 1);
-    RandomBotAutoJoinBGAVCount = sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGAVCount", 0);
-    RandomBotAutoJoinBGEYCount = sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGEYCount", 1);
-    RandomBotAutoJoinBGICCount = sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGICCount", 0);
-
-    RandomBotAutoJoinBGRatedArena2v2Count =
-        sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGRatedArena2v2Count", 0);
-    RandomBotAutoJoinBGRatedArena3v3Count =
-        sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGRatedArena3v3Count", 0);
-    RandomBotAutoJoinBGRatedArena5v5Count =
-        sConfigMgr->GetIntDefault("Playerbots.RandomBotAutoJoinBGRatedArena5v5Count", 0);
     LogInGroupOnly = sConfigMgr->GetBoolDefault("Playerbots.LogInGroupOnly", true);
     LogValuesPerTick = sConfigMgr->GetBoolDefault("Playerbots.LogValuesPerTick", false);
     SummonAtInnkeepersEnabled = sConfigMgr->GetBoolDefault("Playerbots.SummonAtInnkeepersEnabled", true);
@@ -587,7 +560,6 @@ bool PlayerbotAIConfig::Initialize()
     EquipAndSpecPersistence = sConfigMgr->GetBoolDefault("Playerbots.EquipAndSpecPersistence", true);
     EquipAndSpecPersistenceLevel = sConfigMgr->GetIntDefault("Playerbots.EquipAndSpecPersistenceLevel", 1);
     GroupInvitationPermission = sConfigMgr->GetIntDefault("Playerbots.GroupInvitationPermission", 1);
-    AllowBattlegroundCommands = sConfigMgr->GetBoolDefault("Playerbots.AllowBattlegroundCommands", false);
     KeepAltsInGroup = sConfigMgr->GetBoolDefault("Playerbots.KeepAltsInGroup", false);
     AllowSummonInCombat = sConfigMgr->GetBoolDefault("Playerbots.AllowSummonInCombat", true);
     AllowSummonWhenMasterIsDead = sConfigMgr->GetBoolDefault("Playerbots.AllowSummonWhenMasterIsDead", true);
@@ -620,9 +592,8 @@ bool PlayerbotAIConfig::Initialize()
     AltMaintenanceReputation = sConfigMgr->GetBoolDefault("Playerbots.AltMaintenanceReputation", true);
     AltMaintenanceSpecialSpells = sConfigMgr->GetBoolDefault("Playerbots.AltMaintenanceSpecialSpells", true);
     AltMaintenanceMounts = sConfigMgr->GetBoolDefault("Playerbots.AltMaintenanceMounts", true);
-    AltMaintenanceGlyphs = sConfigMgr->GetBoolDefault("Playerbots.AltMaintenanceGlyphs", true);
     AltMaintenanceKeyring = sConfigMgr->GetBoolDefault("Playerbots.AltMaintenanceKeyring", true);
-    AltMaintenanceGemsEnchants = sConfigMgr->GetBoolDefault("Playerbots.AltMaintenanceGemsEnchants", true);
+    AltMaintenanceEnchants = sConfigMgr->GetBoolDefault("Playerbots.AltMaintenanceEnchants", true);
 
     AutoGearCommand = sConfigMgr->GetIntDefault("Playerbots.AutoGearCommand", 1);
     AutoGearCommandAltBots = sConfigMgr->GetIntDefault("Playerbots.AutoGearCommandAltBots", 1);
@@ -640,7 +611,6 @@ bool PlayerbotAIConfig::Initialize()
         RandomBotAllianceRatio = 50;
         RandomBotHordeRatio = 50;
     }
-    DisableDeathKnightLogin = sConfigMgr->GetBoolDefault("Playerbots.DisableDeathKnightLogin", 0);
     BotActiveAlone = sConfigMgr->GetIntDefault("Playerbots.BotActiveAlone", 10);
     BotActiveAloneDurationSeconds = sConfigMgr->GetIntDefault("Playerbots.BotActiveAloneDurationSeconds", 30);
     BotActiveAloneForceWhenInRadius = uint32(sConfigMgr->GetIntDefault("Playerbots.BotActiveAloneForceWhenInRadius", 150));
@@ -668,6 +638,8 @@ bool PlayerbotAIConfig::Initialize()
     FreeMethodLoot = sConfigMgr->GetBoolDefault("Playerbots.FreeMethodLoot", false);
     LootNeedRollLevel = sConfigMgr->GetIntDefault("Playerbots.LootNeedRollLevel", 1);
     LootRollRecipe = sConfigMgr->GetBoolDefault("Playerbots.LootRollRecipe", false);
+    // Disenchant votes are a WotLK (3.3) feature that Classic 1.60 does not offer; the value is
+    // still read so old config files load, but nothing votes with it any more.
     LootRollDisenchant = sConfigMgr->GetBoolDefault("Playerbots.LootRollDisenchant", false);
     LootGreedRollLevel = sConfigMgr->GetBoolDefault("Playerbots.LootGreedRollLevel", false);
     AutoPickReward = sConfigMgr->GetStringDefault("Playerbots.AutoPickReward", "yes");
@@ -707,14 +679,6 @@ bool PlayerbotAIConfig::Initialize()
         sConfigMgr->GetBoolDefault("Playerbots.RandomBotConcentrateInPlayerZone", false);
     RandomBotGroupNearby = sConfigMgr->GetBoolDefault("Playerbots.RandomBotGroupNearby", false);
 
-    // arena
-    RandomBotArenaTeam2v2Count = sConfigMgr->GetIntDefault("Playerbots.RandomBotArenaTeam2v2Count", 10);
-    RandomBotArenaTeam3v3Count = sConfigMgr->GetIntDefault("Playerbots.RandomBotArenaTeam3v3Count", 10);
-    RandomBotArenaTeam5v5Count = sConfigMgr->GetIntDefault("Playerbots.RandomBotArenaTeam5v5Count", 5);
-    DeleteRandomBotArenaTeams = sConfigMgr->GetBoolDefault("Playerbots.DeleteRandomBotArenaTeams", false);
-    RandomBotArenaTeamMaxRating = sConfigMgr->GetIntDefault("Playerbots.RandomBotArenaTeamMaxRating", 2000);
-    RandomBotArenaTeamMinRating = sConfigMgr->GetIntDefault("Playerbots.RandomBotArenaTeamMinRating", 1000);
-
     SelfBotLevel = sConfigMgr->GetIntDefault("Playerbots.SelfBotLevel", 1);
 
     RandomPlayerbotFactory::LoadLocalizedNameColumns();
@@ -733,7 +697,6 @@ bool PlayerbotAIConfig::Initialize()
     }
 
     PlayerbotGuildMgr::instance().Init();
-    sRandomPlayerbotMgr.InitArenaTeams();
     sRandomItemMgr.Init();
     sRandomItemMgr.InitAfterAhBot();
     sBisListMgr->LoadAll();
@@ -770,8 +733,6 @@ void PlayerbotAIConfig::LoadRandomBotLevelConfig()
     LevelBracketsEnabled = sConfigMgr->GetBoolDefault("Playerbots.LevelBrackets.Enabled", false);
     LevelBracketsIgnoreGuildWithRealPlayers =
         sConfigMgr->GetBoolDefault("Playerbots.LevelBrackets.IgnoreGuildBotsWithRealPlayers", true);
-    LevelBracketsIgnoreArenaTeamBots =
-        sConfigMgr->GetBoolDefault("Playerbots.LevelBrackets.IgnoreArenaTeamBots", true);
 
     LevelBracketsCheckFrequency = uint32(sConfigMgr->GetIntDefault("Playerbots.LevelBrackets.CheckFrequency", 300));
     LevelBracketsFlaggedCheckFrequency =

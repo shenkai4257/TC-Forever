@@ -218,9 +218,9 @@ std::vector<std::pair<uint32, std::string>> ListSpellsAction::GetSpellList(std::
         {
             for (uint8 i = 0; i < 3; ++i)
             {
-                if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_CREATE_ITEM)
+                if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_CREATE_ITEM)
                 {
-                    if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(spellInfo->GetEffectOrDefault(SpellEffIndex(i)).ItemType))
+                    if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(GetEffectOrDefault(spellInfo, SpellEffIndex(i)).ItemType))
                     {
                         if (craftsPossible)
                             out << "|cffffff00(x" << craftsPossible << ")|r ";

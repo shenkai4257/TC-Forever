@@ -10,7 +10,6 @@
 #include "AddLootAction.h"
 #include "AttackAction.h"
 #include "AutoMaintenanceOnLevelupAction.h"
-#include "BattleGroundTactics.h"
 #include "BotStateActions.h"
 #include "BuyAction.h"
 #include "CancelChannelAction.h"
@@ -213,11 +212,6 @@ public:
         creators["roll"] = &ActionContext::roll_action;
         creators["cancel channel"] = &ActionContext::cancel_channel;
 
-        // BG Tactics
-        creators["attack wsg support"] = &ActionContext::attack_wsg_support;
-        creators["wsg regroup"] = &ActionContext::wsg_regroup;
-        creators["attack enemy flag carrier"] = &ActionContext::attack_enemy_fc;
-
         // Vehicles
         creators["enter vehicle"] = &ActionContext::enter_vehicle;
         creators["leave vehicle"] = &ActionContext::leave_vehicle;
@@ -408,11 +402,6 @@ private:
     static Action* end_master_fishing(PlayerbotAI* botAI) { return new EndMasterFishingAction(botAI); }
     static Action* remove_bobber_strategy(PlayerbotAI* botAI) { return new RemoveBobberStrategyAction(botAI); }
     static Action* roll_action(PlayerbotAI* botAI) { return new RollAction(botAI); }
-
-    // BG Tactics
-    static Action* attack_wsg_support(PlayerbotAI* botAI) { return new WsgSupportAttackAction(botAI); }
-    static Action* wsg_regroup(PlayerbotAI* botAI) { return new WsgRegroupAction(botAI); }
-    static Action* attack_enemy_fc(PlayerbotAI* botAI) { return new AttackEnemyFlagCarrierAction(botAI); }
 
     // Vehicles
     static Action* enter_vehicle(PlayerbotAI* botAI) { return new EnterVehicleAction(botAI); }

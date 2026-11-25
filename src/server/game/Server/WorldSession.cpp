@@ -353,15 +353,6 @@ void WorldSession::QueuePacket(WorldPacket&& new_packet)
     _recvQueue.add(new WorldPacket(std::move(new_packet)));
 }
 
-std::unique_ptr<WorldPacket> WorldSession::NextQueuedPacket()
-{
-    WorldPacket* packet = nullptr;
-    if (!_recvQueue.next(packet))
-        return nullptr;
-
-    return std::unique_ptr<WorldPacket>(packet);
-}
-
 /// Logging helper for unexpected opcodes
 void WorldSession::LogUnexpectedOpcode(WorldPacket* packet, char const* status, const char *reason)
 {
@@ -647,7 +638,6 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
             return false;                                       //Will remove this session from the world session map
     }
 
-    sScriptMgr->OnSessionUpdate(this, diff);
 
     return true;
 }
@@ -655,9 +645,6 @@ bool WorldSession::Update(uint32 diff, PacketFilter& updater)
 /// %Log the player out
 void WorldSession::LogoutPlayer(bool save)
 {
-    if (_player)
-        sScriptMgr->OnPlayerBeforeLogout(_player);
-
     // finish pending transfers before starting the logout
     while (_player && _player->IsBeingTeleportedFar())
         HandleMoveWorldportAck();

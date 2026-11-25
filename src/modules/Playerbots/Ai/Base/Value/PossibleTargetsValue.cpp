@@ -161,12 +161,12 @@ bool PossibleTriggersValue::AcceptUnit(Unit* unit)
             if (!spellInfo)
                 continue;
             SpellInfo const* triggerSpellInfo =
-                sSpellMgr->GetSpellInfo(spellInfo->GetEffectOrDefault(aurEff->GetEffIndex()).TriggerSpell, DIFFICULTY_NONE);
+                sSpellMgr->GetSpellInfo(GetEffectOrDefault(spellInfo, aurEff->GetEffIndex()).TriggerSpell, DIFFICULTY_NONE);
             if (!triggerSpellInfo)
                 continue;
             for (int j = 0; j < int(triggerSpellInfo->GetEffects().size()); j++)
             {
-                if (triggerSpellInfo->GetEffectOrDefault(SpellEffIndex(j)).Effect == SPELL_EFFECT_SCHOOL_DAMAGE)
+                if (GetEffectOrDefault(triggerSpellInfo, SpellEffIndex(j)).Effect == SPELL_EFFECT_SCHOOL_DAMAGE)
                     return true;
             }
         }

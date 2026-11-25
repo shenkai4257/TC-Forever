@@ -82,8 +82,6 @@ ChatHelper::ChatHelper(PlayerbotAI* botAI) : PlayerbotAIAware(botAI)
     tradeSubClasses["elemental"] = ITEM_SUBCLASS_ELEMENTAL;
     tradeSubClasses["disenchants"] = ITEM_SUBCLASS_ENCHANTING;
     tradeSubClasses["enchanting"] = ITEM_SUBCLASS_ENCHANTING;
-    // Note: gems/jewels are ITEM_CLASS_GEM, not a trade-goods subclass, so they are not
-    // mapped here (a JEWELCRAFTING trade-goods match would miss actual gems).
 
     slots["head"] = EQUIPMENT_SLOT_HEAD;
     slots["neck"] = EQUIPMENT_SLOT_NECK;
@@ -172,11 +170,6 @@ ChatHelper::ChatHelper(PlayerbotAI* botAI) : PlayerbotAIAware(botAI)
     specs[CLASS_WARRIOR][0] = "arms";
     specs[CLASS_WARRIOR][1] = "fury";
     specs[CLASS_WARRIOR][2] = "protection";
-
-    classes[CLASS_DEATH_KNIGHT] = "dk";
-    specs[CLASS_DEATH_KNIGHT][0] = "blood";
-    specs[CLASS_DEATH_KNIGHT][1] = "frost";
-    specs[CLASS_DEATH_KNIGHT][2] = "unholy";
 
     races[RACE_DWARF] = "Dwarf";
     races[RACE_GNOME] = "Gnome";

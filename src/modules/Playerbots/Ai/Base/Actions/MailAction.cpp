@@ -10,6 +10,7 @@
 #include "Mail.h"
 #include "MailPackets.h"
 #include "Bag.h"
+#include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 
 std::map<std::string, MailProcessor*> MailAction::processors;
@@ -85,7 +86,7 @@ public:
         Player* bot = botAI->GetBot();
         if (!CheckBagSpace(bot))
         {
-            botAI->TellError("Not enough bag space");
+            botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_mail_no_bag_space", {}));
             return false;
         }
 
@@ -264,7 +265,7 @@ bool MailAction::Execute(Event event)
 
     if (!MailProcessor::FindMailbox(botAI))
     {
-        botAI->TellError("There is no mailbox nearby");
+        botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_mail_no_mailbox", {}));
         return false;
     }
 

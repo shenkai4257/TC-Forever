@@ -176,8 +176,6 @@ public:
     uint32 RandomBotPrintStatsInterval;
     uint32 MinRandomBotsPriceChangeInterval, MaxRandomBotsPriceChangeInterval;
     uint32 DisabledWithoutRealPlayerLoginDelay, DisabledWithoutRealPlayerLogoutDelay;
-    bool RandomBotJoinLfg;
-    bool RandomBotJoinLfgOutleveledExpansion;
 
     // Professions
     bool EnableFishingWithMaster;
@@ -252,27 +250,6 @@ public:
 
     uint32 GuildRepliesRate;
 
-    bool RandomBotJoinBG;
-    bool RandomBotAutoJoinBG;
-
-    std::string RandomBotAutoJoinICBrackets;
-    std::string RandomBotAutoJoinEYBrackets;
-    std::string RandomBotAutoJoinAVBrackets;
-    std::string RandomBotAutoJoinABBrackets;
-    std::string RandomBotAutoJoinWSBrackets;
-
-    uint32 RandomBotAutoJoinBGICCount;
-    uint32 RandomBotAutoJoinBGEYCount;
-    uint32 RandomBotAutoJoinBGAVCount;
-    uint32 RandomBotAutoJoinBGABCount;
-    uint32 RandomBotAutoJoinBGWSCount;
-
-    uint32 RandomBotAutoJoinArenaBracket;
-
-    uint32 RandomBotAutoJoinBGRatedArena2v2Count;
-    uint32 RandomBotAutoJoinBGRatedArena3v3Count;
-    uint32 RandomBotAutoJoinBGRatedArena5v5Count;
-
     uint32 RandomBotTeleLowerLevel, RandomBotTeleHigherLevel;
     std::map<uint32, std::pair<uint32, uint32>> ZoneBrackets;
     bool LogInGroupOnly, LogValuesPerTick;
@@ -297,7 +274,6 @@ public:
     bool DeleteRandomBotGuilds;
     std::vector<uint32> PvpProhibitedZoneIds;
     std::vector<uint32> PvpProhibitedAreaIds;
-    bool FastReactInBG;
 
     bool RandomBotsWalkingRPG;
     bool RandomBotsWalkingRPGInDoors;
@@ -349,7 +325,6 @@ public:
     float RandomBotXPRate;
     uint32 RandomBotAllianceRatio;
     uint32 RandomBotHordeRatio;
-    bool DisableDeathKnightLogin;
     uint32 BotActiveAlone;
     uint32 BotActiveAloneDurationSeconds;
     uint32 BotActiveAloneForceWhenInRadius;
@@ -396,19 +371,12 @@ public:
     int32 EnableRandomBotTrading;
     uint32 TweakValue;  // Debugging config
 
-    uint32 RandomBotArenaTeamMaxRating;
-    uint32 RandomBotArenaTeamMinRating;
-    uint32 RandomBotArenaTeam2v2Count;
-    uint32 RandomBotArenaTeam3v3Count;
-    uint32 RandomBotArenaTeam5v5Count;
-    bool DeleteRandomBotArenaTeams;
 
     uint32 SelfBotLevel;
     bool DowngradeMaxLevelBot;
     bool EquipAndSpecPersistence;
     int32 EquipAndSpecPersistenceLevel;
     int32 GroupInvitationPermission;
-    bool AllowBattlegroundCommands;
     bool KeepAltsInGroup = false;
     bool AllowSummonInCombat;
     bool AllowSummonWhenMasterIsDead;
@@ -439,9 +407,8 @@ public:
             AltMaintenanceReputation,
             AltMaintenanceSpecialSpells,
             AltMaintenanceMounts,
-            AltMaintenanceGlyphs,
             AltMaintenanceKeyring,
-            AltMaintenanceGemsEnchants;
+            AltMaintenanceEnchants;
     int32 AutoGearCommand, AutoGearCommandAltBots, AutoGearQualityLimit, AutoGearScoreLimit;
     int32 AutoGearBisCommand;
 
@@ -483,7 +450,6 @@ public:
     uint32 LevelBracketsFlaggedCheckFrequency;
     uint32 LevelBracketsFlaggedProcessLimit;
     bool LevelBracketsIgnoreGuildWithRealPlayers;
-    bool LevelBracketsIgnoreArenaTeamBots;
     bool LevelBracketsIgnoreFriendListed;
     std::vector<std::string> LevelBracketsExcludeNames;
     uint8 LevelBracketsNumRanges;

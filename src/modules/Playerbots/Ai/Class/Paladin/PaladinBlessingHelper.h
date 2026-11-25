@@ -80,10 +80,10 @@ namespace ai::blessing
         int32 amount = 0;
         for (uint8 effect = 0; effect < MAX_SPELL_EFFECTS; ++effect)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(effect)).ApplyAuraName != auraType)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(effect)).ApplyAuraName != auraType)
                 continue;
 
-            amount = std::max<int32>(amount, int32(spellInfo->GetEffectOrDefault(SpellEffIndex(effect)).BasePoints) + 1);
+            amount = std::max<int32>(amount, int32(GetEffectOrDefault(spellInfo, SpellEffIndex(effect)).BasePoints) + 1);
         }
 
         if (amount <= 0)

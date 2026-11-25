@@ -31,7 +31,6 @@ constexpr uint32 SPELL_ARMORED_TO_THE_TEETH = 61222;
 constexpr uint32 SPELL_MENTAL_DEXTERITY = 51885;
 constexpr uint32 SPELL_ROGUE_SWORD_SPECIALIZATION = 13964;
 constexpr uint32 SPELL_POLEAXE_SPECIALIZATION = 12785;
-constexpr uint32 SPELL_NERVES_OF_COLD_STEEL = 50138;
 constexpr uint32 SPELL_SHADOW_FOCUS = 15835;
 constexpr uint32 SPELL_ARCANE_FOCUS = 12840;
 
@@ -82,9 +81,7 @@ StatsWeightCalculator::StatsWeightCalculator(Player* player) : player_(player)
     healSpec_ = PlayerbotAI::IsHeal(player, true);
     casterSpec_ = !healSpec_ && PlayerbotAI::IsCaster(player, true);
 
-    if (cls == CLASS_DEATH_KNIGHT && tab == DEATH_KNIGHT_TAB_UNHOLY)
-        hitOverflowType_ = CollectorType::SPELL;
-    else if (cls == CLASS_SHAMAN && tab == SHAMAN_TAB_ENHANCEMENT)
+    if (cls == CLASS_SHAMAN && tab == SHAMAN_TAB_ENHANCEMENT)
         hitOverflowType_ = CollectorType::SPELL;
     else if (cls == CLASS_ROGUE)
         hitOverflowType_ = CollectorType::SPELL;
@@ -165,8 +162,6 @@ float StatsWeightCalculator::CalculateItem(uint32 itemId, int32 randomPropertyId
 
     if (enable_item_set_bonus_ && !setBonusValued)
         CalculateItemSetMod(player_, proto);
-
-    CalculateSocketBonus(player_, proto);
 
     // Apply weapon speed governance if slot is provided and this is a weapon
     if (sPlayerbotAIConfig.PreferredSpecWeapons && slot >= 0 && proto->GetClass() == ITEM_CLASS_WEAPON)
@@ -315,32 +310,6 @@ void StatsWeightCalculator::GenerateBasicWeights(Player* player)
         stats_weights_[STATS_TYPE_EXPERTISE] += 1.4f;
         stats_weights_[STATS_TYPE_MELEE_DPS] += 7.0f;
     }
-    else if (cls == CLASS_DEATH_KNIGHT && tab == DEATH_KNIGHT_TAB_FROST)
-    {
-        stats_weights_[STATS_TYPE_AGILITY] += 0.5f;
-        stats_weights_[STATS_TYPE_STRENGTH] += 2.5f;
-        stats_weights_[STATS_TYPE_ATTACK_POWER] += 0.5f;
-        stats_weights_[STATS_TYPE_ARMOR_PENETRATION] += 2.7f;
-        stats_weights_[STATS_TYPE_HIT] += 2.3f;
-        stats_weights_[STATS_TYPE_CRIT] += 2.2f;
-        stats_weights_[STATS_TYPE_HASTE] += 2.1f;
-        stats_weights_[STATS_TYPE_SPELL_POWER] -= 1.0f;
-        stats_weights_[STATS_TYPE_EXPERTISE] += 2.5f;
-        stats_weights_[STATS_TYPE_MELEE_DPS] += 7.0f;
-    }
-    else if (cls == CLASS_DEATH_KNIGHT && tab == DEATH_KNIGHT_TAB_UNHOLY)
-    {
-        stats_weights_[STATS_TYPE_AGILITY] += 0.5f;
-        stats_weights_[STATS_TYPE_STRENGTH] += 2.5f;
-        stats_weights_[STATS_TYPE_ATTACK_POWER] += 0.5f;
-        stats_weights_[STATS_TYPE_ARMOR_PENETRATION] += 1.3f;
-        stats_weights_[STATS_TYPE_HIT] += 2.2f;
-        stats_weights_[STATS_TYPE_CRIT] += 1.7f;
-        stats_weights_[STATS_TYPE_HASTE] += 1.8f;
-        stats_weights_[STATS_TYPE_SPELL_POWER] -= 1.0f;
-        stats_weights_[STATS_TYPE_EXPERTISE] += 1.5f;
-        stats_weights_[STATS_TYPE_MELEE_DPS] += 5.0f;
-    }
     else if (cls == CLASS_PALADIN && tab == PALADIN_TAB_RETRIBUTION)
     {
         stats_weights_[STATS_TYPE_AGILITY] += 0.5f;
@@ -439,24 +408,6 @@ void StatsWeightCalculator::GenerateBasicWeights(Player* player)
         stats_weights_[STATS_TYPE_ARMOR] += 0.15f;
         stats_weights_[STATS_TYPE_HIT] += 2.0f;
         stats_weights_[STATS_TYPE_SPELL_POWER] -= 2.0f;
-        stats_weights_[STATS_TYPE_EXPERTISE] += 3.0f;
-        stats_weights_[STATS_TYPE_MELEE_DPS] += 2.0f;
-    }
-    else if (cls == CLASS_DEATH_KNIGHT && tab == DEATH_KNIGHT_TAB_BLOOD)
-    {
-        stats_weights_[STATS_TYPE_AGILITY] += 0.2f;
-        stats_weights_[STATS_TYPE_STRENGTH] += 1.3f;
-        stats_weights_[STATS_TYPE_STAMINA] += 3.0f;
-        stats_weights_[STATS_TYPE_ATTACK_POWER] += 0.2f;
-        stats_weights_[STATS_TYPE_DEFENSE] += 2.5f;
-        stats_weights_[STATS_TYPE_PARRY] += 2.0f;
-        stats_weights_[STATS_TYPE_DODGE] += 2.0f;
-        stats_weights_[STATS_TYPE_BLOCK_RATING] -= 2.0f;
-        stats_weights_[STATS_TYPE_BLOCK_VALUE] -= 2.0f;
-        // stats_weights_[STATS_TYPE_RESILIENCE] += 2.0f;
-        stats_weights_[STATS_TYPE_ARMOR] += 0.15f;
-        stats_weights_[STATS_TYPE_HIT] += 2.0f;
-        stats_weights_[STATS_TYPE_SPELL_POWER] -= 1.0f;
         stats_weights_[STATS_TYPE_EXPERTISE] += 3.0f;
         stats_weights_[STATS_TYPE_MELEE_DPS] += 2.0f;
     }
@@ -619,25 +570,6 @@ void StatsWeightCalculator::CalculateItemSetMod(Player* player, ItemTemplate con
     weight_ *= multiplier;
 }
 
-void StatsWeightCalculator::CalculateSocketBonus(Player* /*player*/, ItemTemplate const* proto)
-{
-    uint32 socketNum = 0;
-    for (uint32 enchant_slot = SOCK_ENCHANTMENT_SLOT; enchant_slot < SOCK_ENCHANTMENT_SLOT + MAX_GEM_SOCKETS;
-         ++enchant_slot)
-    {
-        uint8 socketColor = proto->GetSocketColor(enchant_slot - SOCK_ENCHANTMENT_SLOT);
-
-        if (!socketColor)  // no socket slot
-            continue;
-
-        socketNum++;
-    }
-
-    float multiplier = 1.0f + socketNum * 0.03f;  // 3% bonus for socket
-
-    weight_ *= multiplier;
-}
-
 void StatsWeightCalculator::CalculateItemTypePenalty(ItemTemplate const* proto)
 {
     // // penalty for different type armor
@@ -657,9 +589,9 @@ void StatsWeightCalculator::CalculateItemTypePenalty(ItemTemplate const* proto)
         {
             weight_ *= 0.5;
             // spec without double hand
-            // enhancement, rogue, ice dk, unholy dk, shield tank, fury warrior without titan's grip but with duel wield
+            // enhancement, rogue, shield tank, fury warrior without titan's grip but with duel wield
             if (((cls == CLASS_SHAMAN && tab == SHAMAN_TAB_ENHANCEMENT && player_->CanDualWield()) ||
-                 (cls == CLASS_ROGUE) || (cls == CLASS_DEATH_KNIGHT && tab == DEATH_KNIGHT_TAB_FROST) ||
+                 (cls == CLASS_ROGUE) ||
                  (cls == CLASS_WARRIOR && tab == WARRIOR_TAB_FURY && !false &&
                   player_->CanDualWield()) ||
                  (cls == CLASS_WARRIOR && tab == WARRIOR_TAB_PROTECTION) ||
@@ -677,7 +609,6 @@ void StatsWeightCalculator::CalculateItemTypePenalty(ItemTemplate const* proto)
                 (cls == CLASS_WARRIOR && tab == WARRIOR_TAB_FURY && !player_->CanDualWield()) ||
                 (cls == CLASS_WARRIOR && tab == WARRIOR_TAB_ARMS) || (cls == CLASS_DRUID && tab == DRUID_TAB_FERAL) ||
                 (cls == CLASS_PALADIN && tab == PALADIN_TAB_RETRIBUTION) ||
-                (cls == CLASS_DEATH_KNIGHT && tab == DEATH_KNIGHT_TAB_BLOOD) ||
                 (cls == CLASS_SHAMAN && tab == SHAMAN_TAB_ENHANCEMENT && !player_->CanDualWield()))
             {
                 weight_ *= 0.1;
@@ -722,10 +653,6 @@ void StatsWeightCalculator::CalculateItemTypePenalty(ItemTemplate const* proto)
             (proto->GetSubClass() == ITEM_SUBCLASS_WEAPON_POLEARM || proto->GetSubClass() == ITEM_SUBCLASS_WEAPON_AXE2))
         {
             weight_ *= 1.1;
-        }
-        if (cls == CLASS_DEATH_KNIGHT && player_->HasAura(SPELL_NERVES_OF_COLD_STEEL) && !isDoubleHand)
-        {
-            weight_ *= 1.3;
         }
         bool slowDelay = proto->GetDelay() > 2500;
         if (cls == CLASS_SHAMAN && tab == SHAMAN_TAB_ENHANCEMENT && slowDelay)
@@ -951,22 +878,6 @@ float StatsWeightCalculator::ApplyPreferredSpecWeapons(ItemTemplate const* proto
             }
             break;
 
-        case CLASS_DEATH_KNIGHT:
-            if (tab == DEATH_KNIGHT_TAB_BLOOD || tab == DEATH_KNIGHT_TAB_UNHOLY)
-            {
-                // Blood / Unholy: slow 2H in mainhand only.
-                if (slot == EQUIPMENT_SLOT_MAINHAND && delay >= 3400)
-                    return boost;
-            }
-            else if (tab == DEATH_KNIGHT_TAB_FROST)
-            {
-                // Frost DK has Dual Wield innately — always dual-wields 1H.
-                if (proto->GetInventoryType() == INVTYPE_2HWEAPON)
-                    break;
-                if (delay >= 2600)
-                    return boost;
-            }
-            break;
 
         case CLASS_SHAMAN:
             if (tab == SHAMAN_TAB_ENHANCEMENT)

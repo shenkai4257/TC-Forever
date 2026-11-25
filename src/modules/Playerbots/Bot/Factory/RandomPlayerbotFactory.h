@@ -7,7 +7,6 @@
 #ifndef PLAYERBOTS_RANDOMPLAYERBOTFACTORY_H
 #define PLAYERBOTS_RANDOMPLAYERBOTFACTORY_H
 
-#include "Battleground.h"
 #include "Common.h"
 #include "DBCEnums.h"
 #include "SharedDefines.h"

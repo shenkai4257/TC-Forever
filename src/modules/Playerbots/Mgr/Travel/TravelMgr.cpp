@@ -3374,11 +3374,6 @@ void TravelMgr::LoadQuestTravelTable()
         specs[CLASS_WARRIOR][1] = "fury";
         specs[CLASS_WARRIOR][2] = "protection";
 
-        classes[CLASS_DEATH_KNIGHT] = "dk";
-        specs[CLASS_DEATH_KNIGHT][0] = "blood";
-        specs[CLASS_DEATH_KNIGHT][1] = "frost";
-        specs[CLASS_DEATH_KNIGHT][2] = "unholy";
-
         // Use randombot 0.
         std::ostringstream cout;
         cout << sPlayerbotAIConfig.RandomBotAccountPrefix << 0;
@@ -3406,6 +3401,10 @@ void TravelMgr::LoadQuestTravelTable()
 
             for (uint8 race = RACE_HUMAN; race < sChrRacesStore.GetNumRows(); race++)
             {
+                // only races a bot can be generated as (see IsBotRaceAllowed)
+                if (!IsBotRaceAllowed(race))
+                    continue;
+
                 for (uint8 cls = CLASS_WARRIOR; cls < MAX_CLASSES; ++cls)
                 {
                     if (cls != 10)
@@ -4926,6 +4925,10 @@ void TravelMgr::PrepareDestinationCache()
     // Add travel hubs based on player start locations
     for (uint32 i = 1; i < sChrRacesStore.GetNumRows(); i++)
     {
+        // start locations of races a bot can be generated as only (see IsBotRaceAllowed)
+        if (!IsBotRaceAllowed(uint8(i)))
+            continue;
+
         for (uint32 j = 1; j < MAX_CLASSES; j++)
         {
             PlayerInfo const* info = sObjectMgr->GetPlayerInfo(i, j);

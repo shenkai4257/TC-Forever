@@ -6,7 +6,6 @@
 
 #include "SpellIdValue.h"
 #include "ChatHelper.h"
-#include "PlayerbotSpellRepository.h"
 #include "Playerbots.h"
 #include "Vehicle.h"
 #include <set>
@@ -38,22 +37,6 @@ uint32 SpellIdValue::Calculate()
     LocaleConstant loc = LOCALE_enUS;
 
     std::set<uint32> spellIds;
-    // The 1.60 zhCN client data leaves the enUS spell names empty for most spells, so the class
-    // action names resolve through the repository's action-name table first: walk the spell's rank
-    // chain and keep the ranks the bot actually holds, then the rank pick below applies as usual.
-    if (uint32 const anchor = PlayerbotSpellRepository::Instance().GetSpellIdByName(qualifier))
-    {
-        uint32 const last = sSpellMgr->GetLastSpellInChain(anchor);
-        for (uint32 id = sSpellMgr->GetFirstSpellInChain(anchor); id; id = sSpellMgr->GetNextSpellInChain(id))
-        {
-            PlayerSpellMap::const_iterator itr = bot->GetSpellMap().find(id);
-            if (itr != bot->GetSpellMap().end() && itr->second.state != PLAYERSPELL_REMOVED && itr->second.active)
-                spellIds.insert(id);
-            if (id == last)
-                break;
-        }
-    }
-    else
     for (PlayerSpellMap::iterator itr = bot->GetSpellMap().begin(); itr != bot->GetSpellMap().end(); ++itr)
     {
         uint32 spellId = itr->first;
@@ -68,14 +51,14 @@ uint32 SpellIdValue::Calculate()
         if (spellInfo->GetEffects().empty())
             continue;
 
-        if (spellInfo->GetEffectOrDefault(SpellEffIndex(0)).Effect == SPELL_EFFECT_LEARN_SPELL)
+        if (GetEffectOrDefault(spellInfo, SpellEffIndex(0)).Effect == SPELL_EFFECT_LEARN_SPELL)
             continue;
 
         bool useByItem = false;
         for (uint8 i = 0; i < 3; ++i)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_CREATE_ITEM &&
-                itemIds.find(spellInfo->GetEffectOrDefault(SpellEffIndex(i)).ItemType) != itemIds.end())
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_CREATE_ITEM &&
+                itemIds.find(GetEffectOrDefault(spellInfo, SpellEffIndex(i)).ItemType) != itemIds.end())
             {
                 useByItem = true;
                 break;
@@ -106,7 +89,7 @@ uint32 SpellIdValue::Calculate()
             if (spellInfo->GetEffects().empty())
                 continue;
 
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(0)).Effect == SPELL_EFFECT_LEARN_SPELL)
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(0)).Effect == SPELL_EFFECT_LEARN_SPELL)
                 continue;
 
             char const* spellName = spellInfo->SpellName->Str[loc];

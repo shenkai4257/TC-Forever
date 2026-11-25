@@ -12,7 +12,6 @@
 #include "AcceptQuestAction.h"
 #include "ChatHelper.h"
 #include "Event.h"
-#include "ItemPackets.h"
 #include "ItemUsageValue.h"
 #include "LootObjectStack.h"
 #include "PlayerbotAIConfig.h"
@@ -169,7 +168,6 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
     uint8 slot = item->GetSlot();
     uint8 cast_count = 1;
     ObjectGuid item_guid = item->GetGUID();
-    uint32 glyphIndex = 0;
     uint8 castFlags = 0;
     uint32 targetFlag = TARGET_FLAG_NONE;
     GameObject* goTarget = !goGuid.IsEmpty() ? botAI->GetGameObject(goGuid) : nullptr;
@@ -272,22 +270,10 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
 
     if (itemTarget)
     {
-        if (item->GetTemplate()->GetClass() == ITEM_CLASS_GEM)
-        {
-            bool fit = SocketItem(itemTarget, item) || SocketItem(itemTarget, item, true);
-            if (!fit)
-                botAI->TellMaster(
-                    PlayerbotTextMgr::instance().GetBotTextOrDefault("socket_does_not_fit", "Socket does not fit", {}));
-
-            return fit;
-        }
-        else
-        {
-            targetFlag = TARGET_FLAG_ITEM;
-            targetItemGuid = itemTarget->GetGUID();
-            targetText = chat->FormatItem(itemTarget->GetTemplate());
-            targetSelected = true;
-        }
+        targetFlag = TARGET_FLAG_ITEM;
+        targetItemGuid = itemTarget->GetGUID();
+        targetText = chat->FormatItem(itemTarget->GetTemplate());
+        targetSelected = true;
     }
 
     Player* master = GetMaster();
@@ -475,64 +461,6 @@ void UseItemAction::TellConsumableUse(Item* item, std::string const action, floa
 
     out << " (" << round(percent) << "%)";
     botAI->TellMasterNoFacing(out.str());
-}
-
-bool UseItemAction::SocketItem(Item* item, Item* gem, bool replace)
-{
-    // 12.x sends the item guid plus one gem guid per socket; the core validates the
-    // colours itself (see WorldSession::HandleSocketGems).
-    WorldPacket raw(CMSG_SOCKET_GEMS);
-    WorldPackets::Item::SocketGems packet(std::move(raw));
-    packet.ItemGuid = item->GetGUID();
-
-    // A buckle's gem goes into the first colourless template socket.
-    uint8 firstPrismatic = 0;
-    while (firstPrismatic < MAX_GEM_SOCKETS && item->GetSocketColor(firstPrismatic))
-        ++firstPrismatic;
-
-    bool const hasPrismaticSocket = item->GetEnchantmentId(PRISMATIC_ENCHANTMENT_SLOT) != 0;
-
-    GemPropertiesEntry const* gemProperty = sGemPropertiesStore.LookupEntry(gem->GetTemplate()->GetGemProperties());
-
-    bool fits = false;
-    for (uint32 socketIndex = 0; socketIndex < MAX_GEM_SOCKETS; ++socketIndex)
-    {
-        uint32 socketColor = item->GetSocketColor(socketIndex);
-
-        // A socket added by a buckle carries no colour of its own and takes any gem except a meta one.
-        bool const isPrismatic = !socketColor && hasPrismaticSocket && socketIndex == firstPrismatic;
-        bool const gemFitsSocket =
-            gemProperty && (isPrismatic ? (gemProperty->Type & SOCKET_COLOR_META) == 0
-                                        : (gemProperty->Type & SocketColorToGemTypeMask[socketColor]) != 0);
-        if (!gemFitsSocket)
-            continue;
-
-        if (fits)
-            continue;
-
-        int32 const socketedGemId = item->m_itemData->Gems[socketIndex].ItemID;
-        if (!socketedGemId)
-        {
-            packet.GemItem[socketIndex] = gem->GetGUID();
-            fits = true;
-        }
-        else if (replace && uint32(socketedGemId) != gem->GetEntry())
-        {
-            packet.GemItem[socketIndex] = gem->GetGUID();
-            fits = true;
-        }
-    }
-
-    if (fits)
-    {
-        botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault(
-            "socketing_item_with_gem", "Socketing %item with %gem",
-            {{"%item", chat->FormatItem(item->GetTemplate())}, {"%gem", chat->FormatItem(gem->GetTemplate())}}));
-
-        bot->GetSession()->HandleSocketGems(packet);
-    }
-
-    return fits;
 }
 
 bool UseItemAction::isPossible() { return getName() == "use" || AI_VALUE2(uint32, "item count", itemName) > 0; }

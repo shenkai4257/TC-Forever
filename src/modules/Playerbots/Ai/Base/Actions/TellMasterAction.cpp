@@ -6,6 +6,7 @@
 
 #include "TellMasterAction.h"
 #include "Event.h"
+#include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 
 bool TellMasterAction::Execute(Event /*event*/)
@@ -16,7 +17,7 @@ bool TellMasterAction::Execute(Event /*event*/)
 
 bool OutOfReactRangeAction::Execute(Event /*event*/)
 {
-    botAI->TellMaster("Wait for me!");
+    botAI->TellMaster(PlayerbotTextMgr::instance().GetBotText("chat_wait_for_me", {}));
     return true;
 }
 

@@ -452,7 +452,6 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_DEL_CHARACTER_ARENA_STATS, "DELETE FROM character_arena_stats WHERE guid = ?", CONNECTION_ASYNC);
     PrepareStatement(CHAR_REP_CHARACTER_ARENA_STATS, "REPLACE INTO character_arena_stats (guid, slot, matchMakerRating) VALUES (?, ?, ?)", CONNECTION_ASYNC);
     PrepareStatement(CHAR_UPD_ARENA_TEAM_NAME, "UPDATE arena_team SET name = ? WHERE arenaTeamId = ?", CONNECTION_ASYNC);
-    PrepareStatement(CHAR_UPD_ARENA_TEAM_EMBLEM, "UPDATE arena_team SET backgroundColor = ?, emblemStyle = ?, emblemColor = ?, borderStyle = ?, borderColor = ? WHERE arenaTeamId = ?", CONNECTION_ASYNC);
 
     // Character battleground data
     PrepareStatement(CHAR_INS_PLAYER_BGDATA, "REPLACE INTO character_battleground_data (guid, instanceId, team, joinX, joinY, joinZ, joinO, joinMapId, taxiStart, taxiEnd, mountSpell, queueId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", CONNECTION_ASYNC);

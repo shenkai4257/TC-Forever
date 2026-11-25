@@ -341,12 +341,6 @@ bool RpgHealAction::Execute(Event /*event*/)
 
 std::string const RpgHomeBindAction::ActionName() { return "home"; }
 
-std::string const RpgQueueBgAction::ActionName()
-{
-    SET_AI_VALUE(uint32, "bg type", (uint32)AI_VALUE(BattlegroundTypeId, "rpg bg type"));
-    return "free bg join";
-}
-
 std::string const RpgBuyPetitionAction::ActionName() { return "buy petition"; }
 
 std::string const RpgUseAction::ActionName() { return "use"; }

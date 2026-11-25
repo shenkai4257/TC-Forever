@@ -18,7 +18,7 @@
  *
  * The PlayerbotWorldThreadProcessor manages a queue of operations that must be executed
  * in the world thread rather than map threads. This ensures thread safety for operations
- * like group modifications, LFG, guilds, battlegrounds, etc.
+ * like group modifications, guilds, battlegrounds, etc.
  *
  * Architecture:
  * - Map threads queue operations via QueueOperation()

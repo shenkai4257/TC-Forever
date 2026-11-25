@@ -36,10 +36,6 @@ void GenericRogueNonCombatStrategy::InitTriggers(std::vector<TriggerNode*>& trig
 {
     NonCombatStrategy::InitTriggers(triggers);
 
-    triggers.push_back(new TriggerNode("player has flag",
-                                       { NextAction("sprint", ACTION_EMERGENCY + 1) }));
-    triggers.push_back(new TriggerNode("enemy flagcarrier near",
-                                       { NextAction("sprint", ACTION_EMERGENCY + 2) }));
     triggers.push_back(
         new TriggerNode("main hand weapon no enchant",
                         { NextAction("use instant poison on main hand", ACTION_HIGH) }));

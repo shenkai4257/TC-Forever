@@ -7,6 +7,7 @@
 #include "AutoMaintenanceOnLevelupAction.h"
 #include "BroadcastHelper.h"
 #include "PlayerbotAIConfig.h"
+#include "PlayerbotCompat.h"
 #include "PlayerbotFactory.h"
 #include "RandomPlayerbotMgr.h"
 #include "SharedDefines.h"
@@ -121,11 +122,11 @@ void AutoMaintenanceOnLevelupAction::LearnQuestSpells(std::ostringstream* out)
         bool found = false;
         for (uint8 i = 0; i < spellInfo->GetEffects().size(); ++i)
         {
-            if (spellInfo->GetEffectOrDefault(SpellEffIndex(i)).Effect == SPELL_EFFECT_LEARN_SPELL && spellInfo->GetEffectOrDefault(SpellEffIndex(i)).TriggerSpell &&
-                !bot->HasSpell(spellInfo->GetEffectOrDefault(SpellEffIndex(i)).TriggerSpell))
+            if (GetEffectOrDefault(spellInfo, SpellEffIndex(i)).Effect == SPELL_EFFECT_LEARN_SPELL && GetEffectOrDefault(spellInfo, SpellEffIndex(i)).TriggerSpell &&
+                !bot->HasSpell(GetEffectOrDefault(spellInfo, SpellEffIndex(i)).TriggerSpell))
             {
-                if (SpellInfo const* triggeredInfo = sSpellMgr->GetSpellInfo(spellInfo->GetEffectOrDefault(SpellEffIndex(i)).TriggerSpell, DIFFICULTY_NONE))
-                    if (!triggeredInfo->GetEffects().empty() && triggeredInfo->GetEffectOrDefault(EFFECT_0).Effect == SPELL_EFFECT_TRADE_SKILL)
+                if (SpellInfo const* triggeredInfo = sSpellMgr->GetSpellInfo(GetEffectOrDefault(spellInfo, SpellEffIndex(i)).TriggerSpell, DIFFICULTY_NONE))
+                    if (!triggeredInfo->GetEffects().empty() && GetEffectOrDefault(triggeredInfo, EFFECT_0).Effect == SPELL_EFFECT_TRADE_SKILL)
                         break;
 
                 found = true;

@@ -162,7 +162,6 @@ public:
         creators["immolate"] = &WarlockTriggerFactoryInternal::immolate;
         creators["immolate on attacker"] = &WarlockTriggerFactoryInternal::immolate_on_attacker;
         creators["life tap"] = &WarlockTriggerFactoryInternal::life_tap;
-        creators["life tap glyph buff"] = &WarlockTriggerFactoryInternal::life_tap_glyph_buff;
         creators["metamorphosis"] = &WarlockTriggerFactoryInternal::metamorphosis;
         creators["metamorphosis not active"] = &WarlockTriggerFactoryInternal::metamorphosis_not_active;
         creators["meta melee flee check"] = &WarlockTriggerFactoryInternal::meta_melee_flee_check;
@@ -202,7 +201,6 @@ private:
     static Trigger* immolate(PlayerbotAI* botAI) { return new ImmolateTrigger(botAI); }
     static Trigger* immolate_on_attacker(PlayerbotAI* botAI) { return new ImmolateOnAttackerTrigger(botAI); }
     static Trigger* life_tap(PlayerbotAI* botAI) { return new LifeTapTrigger(botAI); }
-    static Trigger* life_tap_glyph_buff(PlayerbotAI* botAI) { return new LifeTapGlyphBuffTrigger(botAI); }
     static Trigger* metamorphosis(PlayerbotAI* botAI) { return new MetamorphosisTrigger(botAI); }
     static Trigger* metamorphosis_not_active(PlayerbotAI* botAI) { return new MetamorphosisNotActiveTrigger(botAI); }
     static Trigger* meta_melee_flee_check(PlayerbotAI* botAI) { return new MetaMeleeEnemyTooCloseForSpellTrigger(botAI); }

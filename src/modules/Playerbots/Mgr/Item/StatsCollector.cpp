@@ -7,6 +7,7 @@
 #include "StatsCollector.h"
 #include "DB2Stores.h"
 #include "ItemTemplate.h"
+#include "PlayerbotCompat.h"
 #include "PlayerbotAI.h"
 #include "PlayerbotAIAware.h"
 #include "SharedDefines.h"
@@ -81,12 +82,6 @@ void StatsCollector::CollectItemStats(ItemTemplate const* proto)
             default:
                 break;
         }
-    }
-
-    if (proto->GetSocketBonus())
-    {
-        if (SpellItemEnchantmentEntry const* enchant = sSpellItemEnchantmentStore.LookupEntry(proto->GetSocketBonus()))
-            CollectEnchantStats(enchant, 0, proto->GetDelay(), proto->IsRangedWeapon());
     }
 }
 
@@ -179,7 +174,7 @@ void StatsCollector::CollectSpellStats(uint32 spellId, float multiplier, Millise
 
     for (int i = 0; i < int(spellInfo->GetEffects().size()); i++)
     {
-        SpellEffectInfo const& effectInfo = spellInfo->GetEffectOrDefault(SpellEffIndex(i));
+        SpellEffectInfo const& effectInfo = GetEffectOrDefault(spellInfo, SpellEffIndex(i));
         if (!effectInfo.Effect)
             continue;
         switch (effectInfo.Effect)

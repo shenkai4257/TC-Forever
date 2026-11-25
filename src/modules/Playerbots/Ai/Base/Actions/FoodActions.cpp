@@ -11,9 +11,6 @@
 
 namespace
 {
-constexpr uint32 BG_WS_SPELL_WARSONG_FLAG = 23333;
-constexpr uint32 BG_WS_SPELL_SILVERWING_FLAG = 23335;
-constexpr uint32 BG_EY_NETHERSTORM_FLAG_SPELL = 34976;
 
 // Graccu's Mince Meat Fruitcake: 5% health and mana per second for 20s. Mana regen is continuous,
 // but health regen is applied in 2s lumps of 10%, timed by the server's update loop, not the aura.
@@ -108,12 +105,6 @@ bool DrinkAction::isPossible()
     if (bot->IsInCombat() || bot->IsMounted() || IsDisallowedFoodState(bot))
         return false;
 
-    if (bot->HasAura(BG_WS_SPELL_WARSONG_FLAG) || bot->HasAura(BG_WS_SPELL_SILVERWING_FLAG) ||
-        bot->HasAura(BG_EY_NETHERSTORM_FLAG_SPELL))
-    {
-        return false;
-    }
-
     return botAI->HasCheat(BotCheatMask::food) || UseItemAction::isPossible();
 }
 
@@ -140,12 +131,6 @@ bool EatAction::isPossible()
 {
     if (bot->IsInCombat() || bot->IsMounted() || IsDisallowedFoodState(bot))
         return false;
-
-    if (bot->HasAura(BG_WS_SPELL_WARSONG_FLAG) || bot->HasAura(BG_WS_SPELL_SILVERWING_FLAG) ||
-        bot->HasAura(BG_EY_NETHERSTORM_FLAG_SPELL))
-    {
-        return false;
-    }
 
     return botAI->HasCheat(BotCheatMask::food) || UseItemAction::isPossible();
 }

@@ -6,6 +6,7 @@
 
 #include "SecurityCheckAction.h"
 #include "Event.h"
+#include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 
 bool SecurityCheckAction::isUseful()
@@ -27,7 +28,7 @@ bool SecurityCheckAction::Execute(Event /*event*/)
             if ((botAI->GetGroupLeader()->GetSession()->GetSecurity() == SEC_PLAYER) &&
                 (!bot->GetGuildId() || bot->GetGuildId() != botAI->GetGroupLeader()->GetGuildId()))
             {
-                botAI->TellError("I will play with this loot type only if I'm in your guild :/");
+                botAI->TellError(PlayerbotTextMgr::instance().GetBotText("chat_loot_guild_only", {}));
                 botAI->ChangeStrategy("+passive,+stay", BOT_STATE_NON_COMBAT);
                 botAI->ChangeStrategy("+passive,+stay", BOT_STATE_COMBAT);
             }

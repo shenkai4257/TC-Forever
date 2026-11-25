@@ -9,7 +9,8 @@
 #include "SpellHistory.h"
 #include "CreatureHelper.h"
 #include "FieldHelper.h"
-#include "PlayerbotsDatabase.h"
+#include "DatabaseEnv.h"
+#include "StringFormat.h"
 #include "BudgetValues.h"
 #include "PathGenerator.h"
 #include "Playerbots.h"
@@ -1663,6 +1664,10 @@ void TravelNodeMap::generateStartNodes()
 
     for (uint32 i = 0; i < sChrRacesStore.GetNumRows(); i++)
     {
+        // start locations of races a bot can be generated as only (see IsBotRaceAllowed)
+        if (!IsBotRaceAllowed(uint8(i)))
+            continue;
+
         for (uint32 j = 0; j < MAX_CLASSES; j++)
         {
             PlayerInfo const* info = sObjectMgr->GetPlayerInfo(i, j);
@@ -2167,11 +2172,11 @@ void TravelNodeMap::saveNodeStore()
 
     hasToSave = false;
 
-    PlayerbotsDatabaseTransaction trans = PlayerbotsDatabase.BeginTransaction();
+    WorldDatabaseTransaction trans = WorldDatabase.BeginTransaction();
 
-    trans->Append(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_TRAVELNODE));
-    trans->Append(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_TRAVELNODE_LINK));
-    trans->Append(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_TRAVELNODE_PATH));
+    trans->Append("DELETE FROM playerbots_travelnode");
+    trans->Append("DELETE FROM playerbots_travelnode_link");
+    trans->Append("DELETE FROM playerbots_travelnode_path");
 
     std::unordered_map<TravelNode*, uint32> saveNodes;
     std::vector<TravelNode*> anodes = TravelNodeMap::instance().getNodes();
@@ -2183,15 +2188,12 @@ void TravelNodeMap::saveNodeStore()
         std::string name = node->getName();
         name.erase(remove(name.begin(), name.end(), '\''), name.end());
 
-        PlayerbotsDatabasePreparedStatement* stmt = PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_INS_TRAVELNODE);
-        PlayerbotSetData(stmt, 0, i);
-        PlayerbotSetData(stmt, 1, name);
-        PlayerbotSetData(stmt, 2, node->getMapId());
-        PlayerbotSetData(stmt, 3, node->getX());
-        PlayerbotSetData(stmt, 4, node->getY());
-        PlayerbotSetData(stmt, 5, node->getZ());
-        PlayerbotSetData(stmt, 6, node->isLinked());
-        trans->Append(stmt);
+        std::string escapedName = name;
+        WorldDatabase.EscapeString(escapedName);
+        trans->Append(Trinity::StringFormat(
+                          "INSERT INTO `playerbots_travelnode` (`id`, `name`, `map_id`, `x`, `y`, `z`, `linked`) VALUES ({}, '{}', {}, {}, {}, {}, {})",
+                          i, escapedName, node->getMapId(), node->getX(), node->getY(), node->getZ(),
+                          uint32(node->isLinked())).c_str());
 
         saveNodes.insert(std::make_pair(node, i));
     }
@@ -2208,20 +2210,13 @@ void TravelNodeMap::saveNodeStore()
             {
                 TravelNodePath* path = link.second;
 
-                PlayerbotsDatabasePreparedStatement* stmt =
-                    PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_INS_TRAVELNODE_LINK);
-                PlayerbotSetData(stmt, 0, i);
-                PlayerbotSetData(stmt, 1, saveNodes.find(link.first)->second);
-                PlayerbotSetData(stmt, 2, static_cast<uint8>(path->getPathType()));
-                PlayerbotSetData(stmt, 3, path->getPathObject());
-                PlayerbotSetData(stmt, 4, path->getDistance());
-                PlayerbotSetData(stmt, 5, path->getSwimDistance());
-                PlayerbotSetData(stmt, 6, path->getExtraCost());
-                PlayerbotSetData(stmt, 7, path->getCalculated());
-                PlayerbotSetData(stmt, 8, path->getMaxLevelCreature()[0]);
-                PlayerbotSetData(stmt, 9, path->getMaxLevelCreature()[1]);
-                PlayerbotSetData(stmt, 10, path->getMaxLevelCreature()[2]);
-                trans->Append(stmt);
+                trans->Append(Trinity::StringFormat(
+                                  "INSERT INTO `playerbots_travelnode_link` (`node_id`, `to_node_id`,`type`,`object`,`distance`,`swim_distance`, `extra_cost`,`calculated`, `max_creature_0`,`max_creature_1`,`max_creature_2`) VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})",
+                                  i, saveNodes.find(link.first)->second, uint32(static_cast<uint8>(path->getPathType())),
+                                  path->getPathObject(), path->getDistance(), path->getSwimDistance(),
+                                  path->getExtraCost(), uint32(path->getCalculated()),
+                                  path->getMaxLevelCreature()[0], path->getMaxLevelCreature()[1],
+                                  path->getMaxLevelCreature()[2]).c_str());
 
                 paths++;
 
@@ -2231,16 +2226,10 @@ void TravelNodeMap::saveNodeStore()
                 {
                     WorldPosition point = ppath[j];
 
-                    PlayerbotsDatabasePreparedStatement* stmt =
-                        PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_INS_TRAVELNODE_PATH);
-                    PlayerbotSetData(stmt, 0, i);
-                    PlayerbotSetData(stmt, 1, saveNodes.find(link.first)->second);
-                    PlayerbotSetData(stmt, 2, j);
-                    PlayerbotSetData(stmt, 3, point.GetMapId());
-                    PlayerbotSetData(stmt, 4, point.GetPositionX());
-                    PlayerbotSetData(stmt, 5, point.GetPositionY());
-                    PlayerbotSetData(stmt, 6, point.GetPositionZ());
-                    trans->Append(stmt);
+                    trans->Append(Trinity::StringFormat(
+                                      "INSERT INTO `playerbots_travelnode_path` (`node_id`, `to_node_id`, `nr`, `map_id`, `x`, `y`, `z`) VALUES ({}, {}, {}, {}, {}, {}, {})",
+                                      i, saveNodes.find(link.first)->second, j, point.GetMapId(),
+                                      point.GetPositionX(), point.GetPositionY(), point.GetPositionZ()).c_str());
 
                     points++;
                 }
@@ -2250,7 +2239,7 @@ void TravelNodeMap::saveNodeStore()
         TC_LOG_INFO("playerbots", ">> Saved {} travelNode Paths, {} points.", paths, points);
     }
 
-    PlayerbotsDatabase.CommitTransaction(trans);
+    WorldDatabase.CommitTransaction(std::move(trans));
 }
 
 void TravelNodeMap::loadNodeStore()
@@ -2260,8 +2249,8 @@ void TravelNodeMap::loadNodeStore()
     std::unordered_map<uint32, TravelNode*> saveNodes;
 
     {
-        if (PreparedQueryResult result =
-                PlayerbotsDatabase.Query(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_TRAVELNODE)))
+        if (QueryResult result =
+                WorldDatabase.Query("SELECT id, name, map_id, x, y, z, linked FROM playerbots_travelnode"))
         {
             do
             {
@@ -2290,8 +2279,8 @@ void TravelNodeMap::loadNodeStore()
     }
 
     {
-        if (PreparedQueryResult result =
-                PlayerbotsDatabase.Query(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_TRAVELNODE_LINK)))
+        if (QueryResult result =
+                WorldDatabase.Query("SELECT node_id, to_node_id,type,object,distance,swim_distance, extra_cost,calculated, max_creature_0,max_creature_1,max_creature_2 FROM playerbots_travelnode_link"))
         {
             do
             {
@@ -2325,8 +2314,8 @@ void TravelNodeMap::loadNodeStore()
     }
 
     {
-        if (PreparedQueryResult result =
-                PlayerbotsDatabase.Query(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_SEL_TRAVELNODE_PATH)))
+        if (QueryResult result =
+                WorldDatabase.Query("SELECT node_id, to_node_id, nr, map_id, x, y, z FROM playerbots_travelnode_path order by node_id, to_node_id, nr"))
         {
             do
             {

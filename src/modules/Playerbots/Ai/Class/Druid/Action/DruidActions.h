@@ -166,7 +166,6 @@ public:
     ActionThreatType getThreatType() override { return ActionThreatType::Aoe; }
 };
 
-inline constexpr uint32 SPELL_GLYPH_OF_TYPHOON = 62135;
 
 
 class CastMoonfireAction : public CastDebuffSpellAction

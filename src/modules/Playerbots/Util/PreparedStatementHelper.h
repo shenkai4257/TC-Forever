@@ -16,19 +16,19 @@
 // argument's type; 12.x exposes the typed setters directly and nothing generic.
 // These overloads keep the ported call sites unchanged: sed rewrote
 // `PlayerbotSetData(stmt, i, v)` into `PlayerbotSetData(stmt, i, v)`.
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, bool value) { stmt->setBool(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, uint8 value) { stmt->setUInt8(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, uint16 value) { stmt->setUInt16(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, uint32 value) { stmt->setUInt32(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, uint64 value) { stmt->setUInt64(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, int8 value) { stmt->setInt8(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, int16 value) { stmt->setInt16(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, int32 value) { stmt->setInt32(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, int64 value) { stmt->setInt64(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, float value) { stmt->setFloat(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, double value) { stmt->setDouble(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, std::string const& value) { stmt->setString(index, std::string_view(value)); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, std::string_view value) { stmt->setString(index, value); }
-template <class T> inline void PlayerbotSetData(PreparedStatement<T>* stmt, uint8 index, char const* value) { stmt->setString(index, std::string_view(value)); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, bool value) { stmt->setBool(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, uint8 value) { stmt->setUInt8(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, uint16 value) { stmt->setUInt16(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, uint32 value) { stmt->setUInt32(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, uint64 value) { stmt->setUInt64(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, int8 value) { stmt->setInt8(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, int16 value) { stmt->setInt16(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, int32 value) { stmt->setInt32(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, int64 value) { stmt->setInt64(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, float value) { stmt->setFloat(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, double value) { stmt->setDouble(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, std::string const& value) { stmt->setString(index, std::string_view(value)); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, std::string_view value) { stmt->setString(index, value); }
+template <class Stmt> inline void PlayerbotSetData(Stmt* stmt, uint8 index, char const* value) { stmt->setString(index, std::string_view(value)); }
 
 #endif
