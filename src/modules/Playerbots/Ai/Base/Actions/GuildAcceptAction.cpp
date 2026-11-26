@@ -67,15 +67,19 @@ bool GuildAcceptAction::Execute(Event event)
 
     if (accept)
     {
-        WorldPacket payload(CMSG_ACCEPT_GUILD_INVITE, 0);
-        WorldPackets::Guild::AcceptGuildInvite data(std::move(payload));
-        bot->GetSession()->HandleGuildAcceptInvite(data);
+        botAI->RunOnWorldThread("guild invite accept", [](Player* bot) {
+            WorldPacket payload(CMSG_ACCEPT_GUILD_INVITE, 0);
+            WorldPackets::Guild::AcceptGuildInvite data(std::move(payload));
+            bot->GetSession()->HandleGuildAcceptInvite(data);
+        });
     }
     else
     {
-        WorldPacket payload(CMSG_GUILD_DECLINE_INVITATION, 0);
-        WorldPackets::Guild::GuildDeclineInvitation data(std::move(payload));
-        bot->GetSession()->HandleGuildDeclineInvitation(data);
+        botAI->RunOnWorldThread("guild invite decline", [](Player* bot) {
+            WorldPacket payload(CMSG_GUILD_DECLINE_INVITATION, 0);
+            WorldPackets::Guild::GuildDeclineInvitation data(std::move(payload));
+            bot->GetSession()->HandleGuildDeclineInvitation(data);
+        });
     }
 
     return true;

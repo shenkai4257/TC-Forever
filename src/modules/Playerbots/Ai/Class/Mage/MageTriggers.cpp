@@ -20,7 +20,7 @@
 static bool CanFirestarterUseBlastWave(PlayerbotAI* botAI)
 {
     AiObjectContext* context = botAI->GetAiObjectContext();
-    return !CastKnockbackSpellAction::IsBlocked(botAI->GetBot(), SPELL_GLYPH_OF_BLAST_WAVE) &&
+    return !CastKnockbackSpellAction::IsBlocked(botAI->GetBot(), 0) &&
            AI_VALUE2(uint32, "spell id", "blast wave") && AI_VALUE2(bool, "spell cast useful", "blast wave");
 }
 

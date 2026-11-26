@@ -105,13 +105,6 @@ public:
 
 
 
-class CastElementalMasteryAction : public CastBuffSpellAction
-{
-public:
-    CastElementalMasteryAction(PlayerbotAI* botAI) :
-        CastBuffSpellAction(botAI, "elemental mastery") {}
-};
-
 
 
 class CastSpiritWalkAction : public Action

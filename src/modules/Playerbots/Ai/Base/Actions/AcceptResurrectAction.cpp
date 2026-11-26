@@ -19,11 +19,13 @@ bool AcceptResurrectAction::Execute(Event event)
     ObjectGuid guid;
     p >> guid;
 
-    WorldPacket payload(CMSG_RESURRECT_RESPONSE, 9);
-    WorldPackets::Misc::ResurrectResponse response(std::move(payload));
-    response.Resurrecter = guid;
-    response.Response = 1;                                      // accept
-    bot->GetSession()->HandleResurrectResponse(response);
+    botAI->RunOnWorldThread("resurrect accept", [resurrector = guid](Player* bot) {
+        WorldPacket payload(CMSG_RESURRECT_RESPONSE, 9);
+        WorldPackets::Misc::ResurrectResponse response(std::move(payload));
+        response.Resurrecter = resurrector;
+        response.Response = 1;                                      // accept
+        bot->GetSession()->HandleResurrectResponse(response);
+    });
 
     return true;
 }

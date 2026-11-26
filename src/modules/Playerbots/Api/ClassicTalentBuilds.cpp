@@ -42,7 +42,7 @@ constexpr TalentPick kWarriorFury[] = {
     // Arms points than 17 allow.
     // 156: Deep Wounds was bought, Anger Management refused with nothing held (Improved Tactical Mastery, its parent, was not in the list and the
     // 17 points had no room for the parent fill). Rend and Thunder Clap are what Deep Wounds was bought under; Tactical Mastery opens Anger Management.
-    { "Improved Rend", 3 }, { "Improved Thunder Clap", 3 }, { "Improved Tactical Mastery", 5 }, { "Anger Management", 1 }, { "Deep Wounds", 3 },
+    { "Improved Rend", 3 }, { "Improved Thunder Clap", 3 }, { "Improved Tactical Mastery", 3 }, { "Anger Management", 1 }, { "Deep Wounds", 3 },
     { "Improved Heroic Strike", 2 },
     // Bloodthirst needs 30 points in the Fury tab (Flurry's row needs 20 before it).
     { "Cruelty", 5 }, { "Unbridled Wrath", 5 }, { "Dual Wield Specialization", 5 }, { "Enrage", 5 }, { "Improved Execute", 2 },
@@ -55,9 +55,9 @@ constexpr TalentPick kWarriorProtection[] = {
     // group 4); it has Iron Will, Improved Shield Bash, Improved Shield Wall, Master of Defense, Vanguard and Bastion in their place.
     // A rank above a node's maximum is clamped by the walk.
     { "Shield Specialization", 5 }, { "Anticipation", 5 }, { "Iron Will", 5 }, { "Last Stand", 1 },
-    { "Improved Shield Wall", 2 }, { "Defiance", 5 }, { "Improved Sunder Armor", 3 }, { "Improved Shield Bash", 2 },
-    { "Concussion Blow", 1 }, { "Master of Defense", 5 }, { "Shield Slam", 1 },
-    { "Improved Revenge", 2 }, { "Vanguard", 3 }, { "Bastion", 3 },
+    { "Improved Shield Wall", 2 }, { "Defiance", 3 }, { "Improved Sunder Armor", 3 }, { "Improved Shield Bash", 2 },
+    { "Concussion Blow", 1 }, { "Master of Defense", 2 }, { "Shield Slam", 1 },
+    { "Improved Revenge", 2 }, { "Vanguard", 1 }, { "Bastion", 3 },
     { "Improved Heroic Strike", 3 }, { "Deflection", 2 }, { "Improved Tactical Mastery", 3 },
     { "Cruelty", 5 },
     { "Improved Bloodrage", 2, true }, { "Booming Voice", 5, true },   // fillers, see Arms
@@ -72,7 +72,7 @@ constexpr TalentPick kPaladinHoly[] = {
     // points in the Holy tab, and Holy Conduit (node 105704) is a Retribution node: bought before it, the tab held 29 and Light's Vigil was
     // refused (233, LearnResult 2). Voice of Truth first makes the 30; Improved Hammer of Justice at 1 keeps the list at 51.
     // Forever launch data (hotfixes 2026_11_03_41): Voice of Truth's node (definition 134825) is Oath of Light now, and Reverence stops at 2.
-    { "Divine Intellect", 5 }, { "Spiritual Focus", 2 }, { "Healing Light", 3 }, { "Reverence", 3 }, { "Divine Favor", 1 },
+    { "Divine Intellect", 5 }, { "Spiritual Focus", 2 }, { "Healing Light", 3 }, { "Reverence", 2 }, { "Divine Favor", 1 },
     { "Holy Power", 5 }, { "Holy Shock", 1 }, { "Illumination", 5 }, { "Purifying Power", 2 }, { "Infusion of Light", 2 },
     { "Oath of Light|Voice of Truth", 1 }, { "Light's Vigil", 1 }, { "Holy Conduit", 2 },
     { "Redoubt", 5 }, { "Guardian's Favor", 2 }, { "Toughness", 5 }, { "Anticipation", 5 }, { "Improved Hammer of Justice", 1 },
@@ -91,11 +91,12 @@ constexpr TalentPick kPaladinRetribution[] = {
     // Forever's Retribution tab (class tree dump, 168 log): no Crusade, Sanctity Aura, Improved Blessing of Might or Improved Seal of the
     // Crusader. Vengeance (row y4530) hangs under Sanctified Judgement (node 105701, 3 ranks), which is why it was refused with the tab
     // full of other points. Tier order, parents first; the leftover pass spends the rest down the Retribution tab.
-    { "Improved Judgement", 2 }, { "Conviction", 5 }, { "Benediction", 5 }, { "Deflection", 5 },
+    { "Improved Judgement", 2 }, { "Conviction", 3 }, { "Benediction", 5 }, { "Deflection", 5 },
     { "Vindication", 3 }, { "Sanctified Judgement", 3 }, { "Seal of Command", 1 }, { "Pursuit of Justice", 2 },
-    { "Eye for an Eye", 2 }, { "Sacred Arbiter", 1 }, { "Vengeance", 3 }, { "Two-Handed Weapon Specialization", 3 },
+    { "Eye for an Eye", 2 }, { "Sacred Arbiter", 1 }, { "Vengeance", 5 }, { "Two-Handed Weapon Specialization", 3 },
     // Forever launch data: Improved Seal of Fury's node (definition 142627) is Shieldsworn, and Twist of Light (spell 1310735) is Unsealed Wrath.
-    { "Repentance", 1 }, { "Shieldsworn|Improved Seal of Fury", 1 }, { "Swift Judgement", 1 }, { "Instrument of Law", 2 },
+    // "Instrument of Law" has no node in the 1.60 client data at all (checked trait_definition + spell_name, 2026-11-26); its 2 points moved to Vengeance.
+    { "Repentance", 1 }, { "Shieldsworn|Improved Seal of Fury", 1 }, { "Swift Judgement", 1 },
     { "Unsealed Wrath|Twist of Light", 1 },
 };
 
@@ -138,26 +139,27 @@ constexpr TalentPick kHunterSurvival[] = {
 
 // ---- Rogue ----
 // Client 70790 renamed Improved Sinister Strike (13732) to Efficient Strikes and Improved Eviscerate (14162) to Coup de Grace.
+// "Murder" has no node in the 1.60 client data at all (checked trait_definition + spell_name, 2026-11-26); its 2 points moved to Relentless Strikes.
 constexpr TalentPick kRogueAssassination[] = {
-    { "Malice", 5 }, { "Murder", 2 }, { "Ruthlessness", 3 }, { "Improved Slice and Dice", 3 },
-    { "Relentless Strikes", 1 }, { "Lethality", 5 }, { "Vile Poisons", 1 }, { "Cold Blood", 1 },
-    { "Improved Poisons", 4 }, { "Seal Fate", 5 }, { "Vigor", 1 },
-    { "Improved Sinister Strike|Efficient Strikes", 2 }, { "Lightning Reflexes", 3 }, { "Precision", 5 }, { "Endurance", 2 },
+    { "Malice", 5 }, { "Ruthlessness", 3 }, { "Improved Slice and Dice", 3 },
+    { "Relentless Strikes", 3 }, { "Lethality", 2 }, { "Vile Poisons", 1 }, { "Cold Blood", 1 },
+    { "Improved Poisons", 4 }, { "Seal Fate", 3 }, { "Vigor", 1 },
+    { "Improved Sinister Strike|Efficient Strikes", 2 }, { "Lightning Reflexes", 3 }, { "Precision", 3 }, { "Endurance", 2 },
     { "Improved Eviscerate|Coup de Grace", 1 }, { "Puncturing Wounds", 3 }, { "Dual Wield Specialization", 5 },
 };
 constexpr TalentPick kRogueCombat[] = {
-    { "Improved Sinister Strike|Efficient Strikes", 2 }, { "Lightning Reflexes", 3 }, { "Precision", 5 }, { "Deflection", 5 }, { "Riposte", 1 },
+    { "Improved Sinister Strike|Efficient Strikes", 2 }, { "Lightning Reflexes", 3 }, { "Precision", 3 }, { "Deflection", 5 }, { "Riposte", 1 },
     { "Endurance", 2 }, { "Improved Sprint", 2 }, { "Dual Wield Specialization", 5 }, { "Blade Flurry", 1 },
     { "Hack and Slash", 5 }, { "Weapon Expertise", 2 }, { "Aggression", 2 }, { "Adrenaline Rush", 1 },
-    { "Malice", 5 }, { "Murder", 2 }, { "Ruthlessness", 3 }, { "Improved Slice and Dice", 3 },
-    { "Relentless Strikes", 1 }, { "Lethality", 1 },
+    { "Malice", 5 }, { "Ruthlessness", 3 }, { "Improved Slice and Dice", 3 },
+    { "Relentless Strikes", 3 }, { "Lethality", 1 },
     { "Opportunity", 5 },
 };
 constexpr TalentPick kRogueSubtlety[] = {
-    { "Opportunity", 5 }, { "Master of Deception", 5 }, { "Camouflage", 3 }, { "Initiative", 3 },
+    { "Opportunity", 5 }, { "Master of Deception", 3 }, { "Camouflage", 3 }, { "Initiative", 3 },
     { "Improved Ambush", 3 }, { "Ghostly Strike", 1 }, { "Serrated Blades", 3 }, { "Hemorrhage", 1 },
     { "Preparation", 1 }, { "Dirty Deeds", 2 }, { "Setup", 1 }, { "Heightened Senses", 2 }, { "Premeditation", 1 },
-    { "Improved Sinister Strike|Efficient Strikes", 2 }, { "Lightning Reflexes", 3 }, { "Precision", 5 }, { "Endurance", 2 },
+    { "Improved Sinister Strike|Efficient Strikes", 2 }, { "Lightning Reflexes", 3 }, { "Precision", 3 }, { "Endurance", 2 },
     { "Improved Eviscerate|Coup de Grace", 1 }, { "Puncturing Wounds", 3 }, { "Dual Wield Specialization", 5 },
 };
 
@@ -174,16 +176,16 @@ constexpr TalentPick kPriestDiscipline[] = {
 constexpr TalentPick kPriestHoly[] = {
     { "Improved Renew", 3 }, { "Holy Specialization", 5 }, { "Divine Fury", 5 }, { "Inspiration", 3 },
     { "Holy Nova", 1 }, { "Litany of Light", 2 }, { "Improved Healing", 3 }, { "Holy Reach", 2 },
-    { "Spirit of Redemption", 1 }, { "Spiritual Guidance", 5 }, { "Spiritual Healing", 5 },
+    { "Spirit of Redemption", 1 }, { "Spiritual Guidance", 5 }, { "Spiritual Healing", 3 },
     { "Silent Resolve", 3 }, { "Improved Power Word: Shield", 3 },
     { "Meditation", 3 }, { "Inner Focus", 1 }, { "Martyrdom", 2 }, { "Mental Agility", 3 },   // no Divine Spirit node in Forever
 };
 constexpr TalentPick kPriestShadow[] = {
     { "Spirit Tap", 5 }, { "Improved Shadow Word: Pain", 2 }, { "Shadow Focus", 5 }, { "Mind Flay", 1 },
-    { "Improved Mind Blast", 5 }, { "Shadow Weaving", 5 }, { "Vampiric Embrace", 1 }, { "Silence", 1 },
-    { "Shadow Reach", 3 }, { "Darkness", 5 }, { "Shadowform", 1 },
-    { "Wand Specialization", 5 }, { "Improved Power Word: Shield", 3 },
-    { "Inner Focus", 1 }, { "Meditation", 3 }, { "Martyrdom", 2 }, { "Mental Agility", 5 },
+    { "Improved Mind Blast", 5 }, { "Shadow Weaving", 3 }, { "Vampiric Embrace", 1 }, { "Silence", 1 },
+    { "Shadow Reach", 2 }, { "Darkness", 5 }, { "Shadowform", 1 },
+    { "Wand Specialization", 2 }, { "Improved Power Word: Shield", 3 },
+    { "Inner Focus", 1 }, { "Meditation", 3 }, { "Martyrdom", 2 }, { "Mental Agility", 3 },
 };
 
 // ---- Shaman ----
@@ -204,17 +206,17 @@ constexpr TalentPick kShamanEnhancement[] = {
     // and the Tidal Focus / Totemic Focus / Restorative Totems picks that followed took 15 points in Restoration, so Anticipation stopped at 3
     // and Flurry was refused. These are names from the client data; a rank above a node's maximum is clamped.
     { "Ancestral Knowledge", 5 }, { "Thundering Strikes", 5 }, { "Anticipation", 5 }, { "Toughness", 5 }, { "Elemental Weapons", 3 },
-    { "Flurry", 5 }, { "Spirit Weapons", 1 }, { "Shamanistic Focus", 1 }, { "Stormstrike", 1 }, { "Improved Stormstrike", 5 },
-    { "Mental Dexterity", 5 }, { "Mental Quickness", 5 }, { "Guardian Totems", 2 }, { "Improved Lightning Shield", 3 }, { "Improved Ghost Wolf", 2 },
+    { "Flurry", 5 }, { "Spirit Weapons", 1 }, { "Shamanistic Focus", 1 }, { "Stormstrike", 1 }, { "Improved Stormstrike", 2 },
+    { "Mental Dexterity", 3 }, { "Mental Quickness", 2 }, { "Guardian Totems", 2 }, { "Improved Lightning Shield", 3 }, { "Improved Ghost Wolf", 2 },
 };
 constexpr TalentPick kShamanRestoration[] = {
     // Forever's Restoration tab (client node list of class 7, support scorecard 230) has no Nature's Guidance, Totemic Mastery or Healing Grace.
     // Natural Grace is its spell-threat talent (Healing Grace's job), and it has Water Shield and Riptide.
     { "Improved Healing Wave", 5 }, { "Tidal Focus", 5 }, { "Natural Grace", 3 }, { "Water Shield", 1 },
-    { "Healing Focus", 5 }, { "Tidal Mastery", 5 }, { "Nature's Swiftness", 1 }, { "Healing Way", 3 },
+    { "Healing Focus", 3 }, { "Tidal Mastery", 5 }, { "Nature's Swiftness", 1 }, { "Healing Way", 3 },
     { "Restorative Totems", 1 }, { "Purification", 5 }, { "Mana Tide Totem", 1 }, { "Riptide", 1 },
     { "Restorative Totems", 5 }, { "Ancestral Healing", 3 }, { "Totemic Focus", 5 },
-    { "Healing Focus", 5 }, { "Improved Reincarnation", 2 },
+    { "Healing Focus", 3 }, { "Improved Reincarnation", 2 },
 };
 
 // ---- Mage ----
@@ -234,10 +236,10 @@ constexpr TalentPick kMageFire[] = {
     // finish the Fire tab went to the Arcane tail), the damage ones first; the last 7 points are Arcane Subtlety and Arcane Concentration.
     // The 70532 client data gives Critical Mass 5 ranks, and Combustion hangs under it in full (236: Combustion refused under node 105784 at 3/5);
     // it has no Wake of Fire, and Improved Fire Blast (2 ranks) in its place. A rank above a node's maximum is clamped (Critical Mass 3 on 70450).
-    { "Accelerant|Improved Fireball", 5 }, { "Ignite", 5 }, { "Fire Power", 5 }, { "Critical Mass", 3 }, { "Improved Scorch", 3 },
+    { "Accelerant|Improved Fireball", 5 }, { "Ignite", 5 }, { "Fire Power", 3 }, { "Critical Mass", 3 }, { "Improved Scorch", 3 },
     { "Master of Elements", 3 }, { "Incineration", 5 }, { "Pyroblast", 1 }, { "Combustion", 1 }, { "Impact", 3 },
     { "Improved Flamestrike", 3 }, { "Blast Wave", 1 }, { "Burning Soul", 3 }, { "Wake of Fire|Improved Fire Blast", 2 }, { "Heating Up", 1 },
-    { "Flamethrowing", 2 },
+    { "Flame Throwing", 2 },
     { "Arcane Subtlety", 2 }, { "Arcane Concentration", 5 },
 };
 constexpr TalentPick kMageFrost[] = {
@@ -259,7 +261,7 @@ constexpr TalentPick kWarlockAffliction[] = {
     // The 70532 client data has no Malediction (236: "build talents not found: Malediction"); its row holds Malevolence (node 110876, spell
     // 1310949: critical chance of Shadow spells, 5 ranks), which takes the same 3 points there.
     { "Improved Corruption", 5 }, { "Improved Life Tap", 2 }, { "Improved Drains", 1 },
-    { "Improved Bane of Agony", 3 }, { "Amplify Curse", 1 },
+    { "Improved Bane of Agony", 2 }, { "Amplify Curse", 1 },
     { "Fel Concentration", 3 }, { "Nightfall", 2 }, { "Suppression", 5 }, { "Siphon Life", 1 },
     { "Malediction|Malevolence", 3 }, { "Shadow Mastery", 5 }, { "Pandemic", 1 },
     { "Demonic Embrace", 5 }, { "Fel Domination", 1 }, { "Master Summoner", 2 }, { "Unholy Power", 2 },
@@ -270,12 +272,12 @@ constexpr TalentPick kWarlockDemonology[] = {
     { "Demonic Embrace", 5 }, { "Improved Imp", 3 }, { "Improved Health Funnel", 2 }, { "Fel Domination", 1 },
     { "Master Summoner", 2 }, { "Unholy Power", 5 }, { "Demonic Sacrifice", 1 },
     { "Improved Shadow Bolt", 5 }, { "Bane", 5 }, { "Destructive Reach", 2 }, { "Cataclysm", 1 }, { "Ruin", 1 },
-    { "Aftermath", 5 }, { "Pyroclasm", 3 }, { "Intensity", 2 },
+    { "Aftermath", 5 }, { "Pyroclasm", 2 }, { "Intensity", 2 },
     { "Fel Vitality", 3, true }, { "Master Demonologist", 5, true },
 };
 constexpr TalentPick kWarlockDestruction[] = {
     { "Improved Shadow Bolt", 5 }, { "Bane", 5 }, { "Destructive Reach", 2 }, { "Cataclysm", 1 }, { "Intensity", 2 },
-    { "Aftermath", 5 }, { "Ruin", 1 }, { "Pyroclasm", 3 }, { "Conflagrate", 1 }, { "Shadowburn", 1 }, { "Decimation", 3 },
+    { "Aftermath", 5 }, { "Ruin", 1 }, { "Pyroclasm", 2 }, { "Conflagrate", 1 }, { "Shadowburn", 1 }, { "Decimation", 2 },
     { "Demonic Embrace", 5 }, { "Fel Domination", 1 }, { "Master Summoner", 2 }, { "Unholy Power", 2 },
     { "Improved Imp", 3, true }, { "Improved Health Funnel", 2, true }, { "Fel Vitality", 3, true },
 };
@@ -284,7 +286,7 @@ constexpr TalentPick kWarlockDestruction[] = {
 constexpr TalentPick kDruidBalance[] = {
     // Forever's druid trees have no Omen of Clarity, Natural Weapons or Improved Mark of the Wild (damage_parity 147); Insect Swarm is a talent
     // there and the rotation casts it.
-    { "Improved Wrath", 5 }, { "Improved Moonfire", 5 }, { "Nature's Reach", 2 }, { "Vengeance", 5 },
+    { "Improved Wrath", 5 }, { "Improved Moonfire", 2 }, { "Nature's Reach", 2 }, { "Vengeance", 5 },
     { "Nature's Grace", 1 }, { "Moonglow", 3 }, { "Improved Starfire", 5 }, { "Moonfury", 5 },
     { "Moonkin Form", 1 }, { "Insect Swarm", 1 },
     { "Heart of the Wild", 5 }, { "Nature's Focus", 5 }, { "Subtlety", 3 },
@@ -299,13 +301,13 @@ constexpr TalentPick kDruidFeralCat[] = {
     { "Ferocity", 5 }, { "Feral Swiftness", 2 }, { "Sharpened Claws", 3 }, { "Shredding Attacks", 2 },
     { "Predatory Strikes", 3 }, { "Blood Frenzy", 2 }, { "Savage Fury", 2 }, { "Furor", 5 },
     { "Leader of the Pack", 1 }, { "Heart of the Wild", 5 }, { "Rend and Tear", 5 }, { "Brutal Impact", 2 },
-    { "Feral Instinct", 5 }, { "Natural Shapeshifter", 3 }, { "Berserk|Primal Bite", 1 }, { "Reflection", 2 }, { "Subtlety", 3 },
+    { "Feral Instinct", 3 }, { "Natural Shapeshifter", 3 }, { "Berserk|Primal Bite", 1 }, { "Reflection", 2 }, { "Subtlety", 3 },
 };
 constexpr TalentPick kDruidFeralBear[] = {
     { "Ferocity", 5 }, { "Thick Hide", 5 }, { "Feral Charge", 1 }, { "Sharpened Claws", 3 },
     { "Feral Swiftness", 2 }, { "Predatory Strikes", 3 }, { "Savage Fury", 2 }, { "Blood Frenzy", 2 },
     { "Furor", 5 }, { "Leader of the Pack", 1 }, { "Heart of the Wild", 5 }, { "Brutal Impact", 2 },
-    { "Feral Instinct", 5 }, { "Natural Shapeshifter", 3 }, { "Lacerate", 1 }, { "Reflection", 2 }, { "Subtlety", 3 },
+    { "Feral Instinct", 3 }, { "Natural Shapeshifter", 3 }, { "Lacerate", 1 }, { "Reflection", 2 }, { "Subtlety", 3 },
 };
 constexpr TalentPick kDruidRestoration[] = {
     // Nature's Swiftness (node 104921) hangs under Naturalist (node 104922, edge type 2: the parent full), so with Naturalist at 2 of 5 it was
@@ -314,7 +316,7 @@ constexpr TalentPick kDruidRestoration[] = {
     // Node swaps of the launch data: see the feral builds.
     { "Heart of the Wild", 5 }, { "Genesis", 5 }, { "Subtlety", 3 }, { "Naturalist", 5 },
     { "Tranquil Spirit", 5 }, { "Improved Rejuvenation", 3 },
-    { "Gift of Nature", 5 }, { "Improved Regrowth", 5 }, { "Nature's Swiftness", 1 }, { "Swiftmend", 1 }, { "Reflection", 5 },
+    { "Gift of Nature", 5 }, { "Improved Regrowth", 5 }, { "Nature's Swiftness", 1 }, { "Swiftmend", 1 }, { "Reflection", 3 },
     { "Improved Wrath", 5 }, { "Improved Moonfire", 1 },
 };
 

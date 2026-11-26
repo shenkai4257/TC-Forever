@@ -170,7 +170,6 @@ bool PlayerbotAIConfig::Initialize()
     MaxAoeAvoidRadius = sConfigMgr->GetFloatDefault("Playerbots.MaxAoeAvoidRadius", 15.0f);
     LoadSet<std::set<uint32>>(sConfigMgr->GetStringDefault("Playerbots.AoeAvoidSpellWhitelist", "50759,57491,13810,29946"),
                               AoeAvoidSpellWhitelist);
-    TellWhenAvoidAoe = sConfigMgr->GetBoolDefault("Playerbots.TellWhenAvoidAoe", false);
 
     RandomGearLoweringChance = sConfigMgr->GetFloatDefault("Playerbots.RandomGearLoweringChance", 0.0f);
     RandomGearQualityLimit = sConfigMgr->GetIntDefault("Playerbots.RandomGearQualityLimit", 3);
@@ -182,14 +181,19 @@ bool PlayerbotAIConfig::Initialize()
     RandomBotMaxLevelChance = sConfigMgr->GetFloatDefault("Playerbots.RandomBotMaxLevelChance", 0.1f);
     RandomBotRpgChance = sConfigMgr->GetFloatDefault("Playerbots.RandomBotRpgChance", 0.20f);
 
-    IterationsPerTick = sConfigMgr->GetIntDefault("Playerbots.IterationsPerTick", 10);
 
     AllowAccountBots = sConfigMgr->GetBoolDefault("Playerbots.AllowAccountBots", true);
     AllowGuildBots = sConfigMgr->GetBoolDefault("Playerbots.AllowGuildBots", true);
     AllowTrustedAccountBots = sConfigMgr->GetBoolDefault("Playerbots.AllowTrustedAccountBots", true);
     DisabledWithoutRealPlayer = sConfigMgr->GetBoolDefault("Playerbots.DisabledWithoutRealPlayer", false);
     RandomBotGuildNearby = sConfigMgr->GetBoolDefault("Playerbots.RandomBotGuildNearby", false);
-    RandomBotInvitePlayer = sConfigMgr->GetBoolDefault("Playerbots.RandomBotInvitePlayer", false);
+    RandomBotInvitePlayer = sConfigMgr->GetBoolDefault("Playerbots.RandomBotInvitePlayer", true);
+    LogInGroupOnly = sConfigMgr->GetBoolDefault("Playerbots.LogInGroupOnly", true);
+    LogValuesPerTick = sConfigMgr->GetBoolDefault("Playerbots.LogValuesPerTick", false);
+    RandomChangeMultiplier = sConfigMgr->GetFloatDefault("Playerbots.RandomChangeMultiplier", 1.0f);
+    TellWhenAvoidAoe = sConfigMgr->GetBoolDefault("Playerbots.TellWhenAvoidAoe", false);
+    IterationsPerTick = sConfigMgr->GetIntDefault("Playerbots.IterationsPerTick", 1);
+    CommandServerPort = sConfigMgr->GetIntDefault("Playerbots.CommandServerPort", 8888);
     InviteChat = sConfigMgr->GetBoolDefault("Playerbots.InviteChat", false);
 
     RandomBotMapsAsString = sConfigMgr->GetStringDefault("Playerbots.RandomBotMaps", "0,1,530,571");
@@ -301,7 +305,6 @@ bool PlayerbotAIConfig::Initialize()
 
     //////////////////////////// ICC
 
-    EnableICCBuffs = sConfigMgr->GetBoolDefault("Playerbots.EnableICCBuffs", true);
 
     //////////////////////////// Professions
     ClassMatchingProfessionChance =
@@ -399,8 +402,6 @@ bool PlayerbotAIConfig::Initialize()
     ThunderfuryRepliesChance = sConfigMgr->GetIntDefault("Playerbots.ThunderfuryRepliesChance", 40);  // 0-100
     GuildRepliesRate = sConfigMgr->GetIntDefault("Playerbots.GuildRepliesRate", 100);                 // 0-100
 
-    LogInGroupOnly = sConfigMgr->GetBoolDefault("Playerbots.LogInGroupOnly", true);
-    LogValuesPerTick = sConfigMgr->GetBoolDefault("Playerbots.LogValuesPerTick", false);
     SummonAtInnkeepersEnabled = sConfigMgr->GetBoolDefault("Playerbots.SummonAtInnkeepersEnabled", true);
     RandomBotMinLevel = sConfigMgr->GetIntDefault("Playerbots.RandomBotMinLevel", 1);
     RandomBotMaxLevel = sConfigMgr->GetIntDefault("Playerbots.RandomBotMaxLevel", 80);
@@ -449,7 +450,6 @@ bool PlayerbotAIConfig::Initialize()
         }
     }
 
-    RandomChangeMultiplier = sConfigMgr->GetFloatDefault("Playerbots.RandomChangeMultiplier", 1.0);
 
     RandomBotCombatStrategies = sConfigMgr->GetStringDefault("Playerbots.RandomBotCombatStrategies", "");
     RandomBotNonCombatStrategies = sConfigMgr->GetStringDefault("Playerbots.RandomBotNonCombatStrategies", "");
@@ -462,7 +462,6 @@ bool PlayerbotAIConfig::Initialize()
     CommandPrefix = sConfigMgr->GetStringDefault("Playerbots.CommandPrefix", "");
     CommandSeparator = sConfigMgr->GetStringDefault("Playerbots.CommandSeparator", "\\\\");
 
-    CommandServerPort = sConfigMgr->GetIntDefault("Playerbots.CommandServerPort", 8888);
     PerfMonEnabled = sConfigMgr->GetBoolDefault("Playerbots.PerfMonEnabled", false);
 
     // stagger bot flightpath takeoff
@@ -498,8 +497,6 @@ bool PlayerbotAIConfig::Initialize()
     LoadListString<std::vector<std::string>>(sConfigMgr->GetStringDefault("Playerbots.TradeActionExcludedPrefixes", ""),
                                              TradeActionExcludedPrefixes);
 
-    WorldBuffs.clear();
-    LoadWorldBuff();
     TC_LOG_INFO("playerbots", "Loading World Buff Feature...");
 
     RandomBotAccountPrefix = sConfigMgr->GetStringDefault("Playerbots.RandomBotAccountPrefix", "rndbot");
@@ -640,7 +637,6 @@ bool PlayerbotAIConfig::Initialize()
     LootRollRecipe = sConfigMgr->GetBoolDefault("Playerbots.LootRollRecipe", false);
     // Disenchant votes are a WotLK (3.3) feature that Classic 1.60 does not offer; the value is
     // still read so old config files load, but nothing votes with it any more.
-    LootRollDisenchant = sConfigMgr->GetBoolDefault("Playerbots.LootRollDisenchant", false);
     LootGreedRollLevel = sConfigMgr->GetBoolDefault("Playerbots.LootGreedRollLevel", false);
     AutoPickReward = sConfigMgr->GetStringDefault("Playerbots.AutoPickReward", "yes");
     AutoEquipUpgradeLoot = sConfigMgr->GetBoolDefault("Playerbots.AutoEquipUpgradeLoot", true);
@@ -974,65 +970,6 @@ void PlayerbotAIConfig::LogToFile(std::string const fileName, char const* str, .
     fflush(stdout);
 }
 
-void PlayerbotAIConfig::LoadWorldBuff()
-{
-    std::string matrix = sConfigMgr->GetStringDefault("Playerbots.WorldBuffMatrix", "", true);
-    if (matrix.empty())
-        return;
-
-    std::istringstream entryStream(matrix);
-    std::string entry;
-
-    while (std::getline(entryStream, entry, ';'))
-    {
-
-        entry.erase(0, entry.find_first_not_of(" \t\r\n"));
-        entry.erase(entry.find_last_not_of(" \t\r\n") + 1);
-
-        size_t firstColon = entry.find(':');
-        size_t secondColon = entry.find(':', firstColon + 1);
-
-        if (firstColon == std::string::npos || secondColon == std::string::npos)
-        {
-            TC_LOG_ERROR("playerbots", "Malformed entry: [{}]", entry);
-            continue;
-        }
-
-        std::string metaPart = entry.substr(firstColon + 1, secondColon - firstColon - 1);
-        std::string spellPart = entry.substr(secondColon + 1);
-
-        std::vector<uint32> ids;
-        std::istringstream metaStream(metaPart);
-        std::string token;
-        while (std::getline(metaStream, token, ','))
-        {
-            try {
-                ids.push_back(static_cast<uint32>(std::stoi(token)));
-            } catch (...) {
-                TC_LOG_ERROR("playerbots", "Invalid meta token in [{}]", entry);
-                break;
-            }
-        }
-
-        if (ids.size() != 5)
-        {
-            TC_LOG_ERROR("playerbots", "Entry [{}] has incomplete meta block", entry);
-            continue;
-        }
-
-        std::istringstream spellStream(spellPart);
-        while (std::getline(spellStream, token, ','))
-        {
-            try {
-                uint32 spellId = static_cast<uint32>(std::stoi(token));
-                WorldBuff wb = { spellId, ids[0], ids[1], ids[2], ids[3], ids[4] };
-                WorldBuffs.push_back(wb);
-            } catch (...) {
-                TC_LOG_ERROR("playerbots", "Invalid spell ID in [{}]", entry);
-            }
-        }
-    }
-}
 
 static std::vector<std::string> Split(std::string const& str, std::string const& pattern)
 {

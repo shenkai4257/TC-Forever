@@ -526,7 +526,7 @@ void RandomPlayerbotMgr::AssignAccountTypes()
     // First, get ALL randombot accounts from the database
     std::vector<uint32> allRandomBotAccounts;
     QueryResult allAccounts = LoginDatabase.PQuery(
-        "SELECT id FROM account WHERE username LIKE '{}%%' ORDER BY id",
+        "SELECT id FROM account WHERE username LIKE '{}%' ORDER BY id",
         sPlayerbotAIConfig.RandomBotAccountPrefix.c_str());
 
     if (allAccounts)
@@ -2021,12 +2021,12 @@ CachedEvent* RandomPlayerbotMgr::FindEvent(uint32 bot, std::string const& event)
 
     CachedEvent& e = it->second;
 
-    // remove expired events
+    // Expired events read as null but are NOT erased here: FindEvent is also called from the bot's
+    // map thread (GetBuyMultiplier/GetTradeDiscount -> FindEvent) while the world thread writes the
+    // same unordered_map. Entries are bounded per bot and get replaced/removed by SetEventValue on
+    // the world thread, so skipping the erase is the thread-safe equivalent.
     if (e.validIn && (NowSeconds() - e.lastChangeTime) >= e.validIn && event != "specNo" && event != "specLink")
-    {
-        cache.events.erase(it);
         return nullptr;
-    }
 
     return &e;
 }
@@ -2104,7 +2104,6 @@ uint32 RandomPlayerbotMgr::GetValue(Player* bot, std::string const& type)
     return GetValue(bot->GetGUID().GetCounter(), type);
 }
 
-std::string RandomPlayerbotMgr::GetData(uint32 bot, std::string const& type) { return GetEventData(bot, type); }
 
 void RandomPlayerbotMgr::SetValue(uint32 bot, std::string const& type, uint32 value, std::string const& data)
 {
@@ -2420,20 +2419,7 @@ void RandomPlayerbotMgr::OnPlayerLogin(Player* player)
     }
 }
 
-void RandomPlayerbotMgr::OnPlayerLoginError(uint32 bot)
-{
-    SetEventValue(bot, "add", 0, 0);
-    currentBots.erase(bot);
-}
 
-Player* RandomPlayerbotMgr::GetRandomPlayer()
-{
-    if (players.empty())
-        return nullptr;
-
-    uint32 index = urand(0, players.size() - 1);
-    return players[index];
-}
 
 void RandomPlayerbotMgr::PrintStats()
 {
@@ -3038,31 +3024,7 @@ void RandomPlayerbotMgr::ChangeStrategy(Player* player)
     ScheduleChangeStrategy(bot);
 }
 
-void RandomPlayerbotMgr::ChangeStrategyOnce(Player* player)
-{
-    uint32 bot = player->GetGUID().GetCounter();
 
-    if (frand(0.f, 100.f) > sPlayerbotAIConfig.RandomBotRpgChance)  // select grind / pvp
-    {
-        TC_LOG_INFO("playerbots", "Bot #{} <{}>: sent to grind spot", bot, player->GetName().c_str());
-        RandomTeleportForLevel(player);
-        Refresh(player);
-    }
-    else
-    {
-        TC_LOG_INFO("playerbots", "Bot #{} <{}>: sent to inn", bot, player->GetName().c_str());
-        RandomTeleportForLevel(player);
-    }
-}
-
-void RandomPlayerbotMgr::RandomTeleportForRpg(Player* bot)
-{
-    uint32 race = bot->GetRace();
-    uint32 level = bot->GetLevel();
-    TC_LOG_DEBUG("playerbots", "Random teleporting bot {} for RPG ({} locations available)", bot->GetName().c_str(),
-              rpgLocsCacheLevel[race].size());
-    RandomTeleport(bot, rpgLocsCacheLevel[race][level], true);
-}
 
 void RandomPlayerbotMgr::Remove(Player* bot)
 {

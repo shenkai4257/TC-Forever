@@ -28,13 +28,16 @@ bool BuyPetitionAction::Execute(Event /*event*/)
         if (guildName.empty())
             continue;
 
-        WorldPacket raw(CMSG_PETITION_BUY);
-        WorldPackets::Petition::PetitionBuy packet(std::move(raw));
-        packet.Unit = pCreature->GetGUID();
-        packet.Title = guildName;
-        packet.Muid = 0;
+        ObjectGuid const vendor = pCreature->GetGUID();
+        botAI->RunOnWorldThread("petition buy", [vendor, guildName](Player* bot) {
+            WorldPacket raw(CMSG_PETITION_BUY);
+            WorldPackets::Petition::PetitionBuy packet(std::move(raw));
+            packet.Unit = vendor;
+            packet.Title = guildName;
+            packet.Muid = 0;
 
-        bot->GetSession()->HandlePetitionBuy(packet);
+            bot->GetSession()->HandlePetitionBuy(packet);
+        });
 
         return true;
     }
@@ -104,26 +107,36 @@ bool PetitionOfferAction::Execute(Event event)
     if (!player)
         return false;
 
-    WorldPacket raw(CMSG_OFFER_PETITION);
-    WorldPackets::Petition::OfferPetition data(std::move(raw));
-    data.TargetPlayer = guid;
-    data.ItemGUID = petitions.front()->GetGUID();
+    ObjectGuid const petitionItem = petitions.front()->GetGUID();
+    uint32 const targetAccount = player->GetSession()->GetAccountId();
 
+    // Already signed by this account? Synchronous query, fine on the bot's own thread.
     QueryResult result =
         CharacterDatabase.PQuery("SELECT playerguid FROM petition_sign WHERE player_account = {} AND petitionguid = {}",
-                                player->GetSession()->GetAccountId(), petitions.front()->GetGUID().GetCounter());
+                                targetAccount, petitionItem.GetCounter());
     if (result)
     {
         return false;
     }
 
-    bot->GetSession()->HandleOfferPetition(data);
+    // Offer, then count the signatures the offer produced, in one world-thread step: the second
+    // query must observe the handler's writes.
+    botAI->RunOnWorldThread("petition offer", [guid, petitionItem](Player* bot)
+    {
+        WorldPacket raw(CMSG_OFFER_PETITION);
+        WorldPackets::Petition::OfferPetition data(std::move(raw));
+        data.TargetPlayer = guid;
+        data.ItemGUID = petitionItem;
 
-    result = CharacterDatabase.PQuery("SELECT playerguid FROM petition_sign WHERE petitionguid = {}",
-                                     petitions.front()->GetGUID().GetCounter());
-    uint8 signs = result ? (uint8)result->GetRowCount() : 0;
+        bot->GetSession()->HandleOfferPetition(data);
 
-    context->GetValue<uint8>("petition signs")->Set(signs);
+        QueryResult result = CharacterDatabase.PQuery("SELECT playerguid FROM petition_sign WHERE petitionguid = {}",
+                                                     petitionItem.GetCounter());
+        uint8 signs = result ? (uint8)result->GetRowCount() : 0;
+
+        if (PlayerbotAI* ai = sPlayerbotsMgr.GetPlayerbotAI(bot))
+            ai->GetAiObjectContext()->GetValue<uint8>("petition signs")->Set(signs);
+    });
 
     return true;
 }
@@ -207,14 +220,21 @@ bool PetitionTurnInAction::Execute(Event /*event*/)
         if (!petition)
             return false;
 
-        WorldPacket raw(CMSG_TURN_IN_PETITION);
-        WorldPackets::Petition::TurnInPetition data(std::move(raw));
-        data.Item = petition->GetGUID();
-
-        bot->GetSession()->HandleTurnInPetition(data);
-
-        if (bot->GetGuildId())
+        // Turn-in and everything that must observe its result (the new guild id, emblem, rank rights)
+        // form one world-thread step. Everything inside touches Guild state, which is shared across
+        // maps - the guild table handlers are PROCESS_THREADUNSAFE for the same reason.
+        ObjectGuid const petitionItem = petition->GetGUID();
+        botAI->RunOnWorldThread("petition turn in", [petitionItem](Player* bot)
         {
+            WorldPacket raw(CMSG_TURN_IN_PETITION);
+            WorldPackets::Petition::TurnInPetition data(std::move(raw));
+            data.Item = petitionItem;
+
+            bot->GetSession()->HandleTurnInPetition(data);
+
+            if (!bot->GetGuildId())
+                return;
+
             // Ensure that bot has at least 10g for HandleSetEmblem can be managed core side
             // (EMBLEM_PRICE = 10 * GOLD in core)
             static constexpr uint32 REQUIRED = 10 * GOLD;
@@ -246,7 +266,7 @@ bool PetitionTurnInAction::Execute(Event /*event*/)
 
             // LANG_GUILD_VETERAN -> can invite
             guild->HandleSetRankInfo(GuildRankId(2), {}, uint32(GR_RIGHT_GCHATLISTEN | GR_RIGHT_GCHATSPEAK | GR_RIGHT_INVITE));
-        }
+        });
 
         return true;
     }

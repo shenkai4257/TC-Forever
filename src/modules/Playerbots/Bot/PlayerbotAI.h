@@ -25,6 +25,8 @@
 #include "SpellAuras.h"
 #include "Util.h"
 #include "WorldPacket.h"
+#include <functional>
+#include <mutex>
 #include <stack>
 #include <unordered_set>
 
@@ -408,6 +410,12 @@ public:
     void HandleMasterIncomingPacket(WorldPacket const& packet);
     void HandleMasterOutgoingPacket(WorldPacket const& packet);
     void HandleTeleportAck();
+    // Queues `call` to run on this bot in the world tick window (map threads idle), through
+    // PlayerbotWorldThreadProcessor. Core packet handlers registered PROCESS_THREADUNSAFE must go
+    // through it: calling one from the bot's own tick would run it on a map worker thread. The
+    // call receives the bot resolved by guid, so it must capture guids and values, not object
+    // pointers; its effects are not visible when RunOnWorldThread returns.
+    void RunOnWorldThread(std::string name, std::function<void(Player*)> call);
     void ChangeEngine(BotState type);
     void ChangeEngineOnCombat();
     void ChangeEngineOnNonCombat();
@@ -441,20 +449,10 @@ public:
     static ObjectGuid GetMainTankGuid(Group* group);
     static bool IsMainTank(Player* player);
     static bool IsExplicitMainTank(Player* player);
-    static bool IsBotMainTank(Player* player);
     static uint32 GetGroupTankNum(Player* player);
-    static bool IsAssistTank(Player* player);
-    static bool IsAssistTankOfIndex(Player* player, uint8 index, bool indexLivingOnly = false);
-    static bool IsAssistHealOfIndex(Player* player, uint8 index, bool indexLivingOnly = false);
-    static bool IsAssistRangedDpsOfIndex(Player* player, uint8 index, bool indexLivingOnly = false);
     bool HasAggro(Unit* unit);
     bool IsMovementImpaired(Unit* unit);
-    static int32 GetAssistTankIndex(Player* player);
     int32 GetGroupSlotIndex(Player* player);
-    int32 GetRangedIndex(Player* player);
-    int32 GetClassIndex(Player* player, uint8 cls);
-    int32 GetRangedDpsIndex(Player* player);
-    int32 GetMeleeIndex(Player* player);
 
     Creature* GetCreature(ObjectGuid guid);
     Unit* GetUnit(ObjectGuid guid);
@@ -463,7 +461,6 @@ public:
     GameObject* GetGameObject(ObjectGuid guid);
     // static GameObject* GetGameObject(GameObjectData const* gameObjectData);
     WorldObject* GetWorldObject(ObjectGuid guid);
-    std::vector<Player*> GetAllPlayersInGroup();
     std::vector<Player*> GetRealPlayersInGroup();
     AreaTableEntry const* GetCurrentArea();
     AreaTableEntry const* GetCurrentZone();
@@ -488,15 +485,11 @@ public:
     bool Whisper(std::string const& msg, std::string const& receiverName);
 
     void SpellInterrupted(uint32 spellid);
-    int32 CalculateGlobalCooldown(uint32 spellid);
-    void RequestSpellInterrupt();
     void RemoveAura(std::string const name);
     void RemoveShapeshift();
-    void WaitForSpellCast(Spell* spell);
     bool PlaySound(uint32 emote);
     bool PlayEmote(uint32 emote);
     void Ping(float x, float y);
-    Item* FindPoison() const;
     Item* FindAmmo() const;
     Item* FindBandage() const;
     Item* FindOpenableItem() const;
@@ -593,7 +586,6 @@ public:
     bool CanMove();
     bool IsInRealGuild();
     static std::vector<std::string> dispel_whitelist;
-    bool EqualLowercaseName(std::string s1, std::string s2);
     InventoryResult CanEquipItem(uint8 slot, uint16& dest, Item* pItem, bool swap, bool not_loading = true) const;
     uint8 FindEquipSlot(ItemTemplate const* proto, uint32 slot, bool swap) const;
     std::vector<Item*> GetInventoryAndEquippedItems();
@@ -611,10 +603,7 @@ public:
     std::vector<std::pair<Quest const*, uint32>> GetCurrentQuestsRequiringItemId(uint32 itemId);
     uint32 GetReactDelay();
 
-    std::vector<Quest const*> GetAllCurrentQuests();
-    std::vector<Quest const*> GetCurrentIncompleteQuests();
     std::set<uint32> GetAllCurrentQuestIds();
-    std::set<uint32> GetCurrentIncompleteQuestIds();
     void PetFollow();
     static float GetItemScoreMultiplier(ItemQualities quality);
     static bool IsHealingSpell(uint32 spellFamilyName, flag96 spellFamilyFlags);
@@ -660,6 +649,9 @@ protected:
     Engine* engines[BOT_STATE_MAX];
     BotState currentState;
     ChatHelper chatHelper;
+    // Written from the world thread (OnChat -> HandleCommand) and consumed on the bot's own
+    // map thread (HandleCommands) - the pair needs the mutex. currentChat is the same pair.
+    std::mutex chatMutex;
     std::list<ChatCommandHolder> chatCommands;
     std::list<ChatQueuedReply> chatReplies;
     PacketHandlingHelper botOutgoingPacketHandlers;
@@ -677,7 +669,6 @@ protected:
     BotCheatMask cheatMask = BotCheatMask::none;
     Position jumpDestination = Position();
     uint32 nextTransportCheck = 0;
-    bool spellInterruptRequested = false;
 };
 
 #endif

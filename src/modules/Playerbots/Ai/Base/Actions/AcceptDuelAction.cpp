@@ -22,12 +22,17 @@ bool AcceptDuelAction::Execute(Event event)
         (botAI->GetMaster() && botAI->GetMaster()->GetGUID() != playerGuid)) &&
         AI_VALUE2(uint8, "health", "self target") < 90)
     {
-        bot->GetSession()->HandleDuelCancelled();
+        botAI->RunOnWorldThread("duel cancel", [] (Player* bot) {
+            bot->GetSession()->HandleDuelCancelled();
+        });
         return false;
     }
 
-    // 12.x handlers take structured arguments instead of a forged client packet.
-    bot->GetSession()->HandleDuelAccepted(flagGuid);
+    // CMSG_DUEL_RESPONSE is PROCESS_THREADUNSAFE (these two are its internal entry points),
+    // so the accept runs in the world tick window like the other player-interaction handlers.
+    botAI->RunOnWorldThread("duel accept", [flagGuid] (Player* bot) {
+        bot->GetSession()->HandleDuelAccepted(flagGuid);
+    });
 
     botAI->ResetStrategies();
     return true;

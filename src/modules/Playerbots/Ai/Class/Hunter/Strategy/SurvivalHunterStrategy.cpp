@@ -30,14 +30,6 @@ void SurvivalHunterStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
 
     triggers.push_back(
         new TriggerNode(
-            "kill command",
-            {
-                NextAction("kill command", 18.5f)
-            }
-        )
-    );
-    triggers.push_back(
-        new TriggerNode(
             "black arrow",
             {
                 NextAction("black arrow", 16.5f)

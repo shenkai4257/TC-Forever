@@ -73,10 +73,12 @@ bool ReviveFromCorpseAction::Execute(Event event)
     bot->GetMotionMaster()->Clear();
     bot->StopMoving();
 
-    WorldPacket raw(CMSG_RECLAIM_CORPSE);
-    WorldPackets::Misc::ReclaimCorpse packet(std::move(raw));
-    packet.CorpseGUID = bot->GetGUID();
-    bot->GetSession()->HandleReclaimCorpse(packet);
+    botAI->RunOnWorldThread("reclaim corpse", [corpseGuid = bot->GetGUID()](Player* bot) {
+        WorldPacket raw(CMSG_RECLAIM_CORPSE);
+        WorldPackets::Misc::ReclaimCorpse packet(std::move(raw));
+        packet.CorpseGUID = corpseGuid;
+        bot->GetSession()->HandleReclaimCorpse(packet);
+    });
 
     return true;
 }

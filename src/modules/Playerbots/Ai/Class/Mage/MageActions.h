@@ -66,12 +66,6 @@ public:
     CastPresenceOfMindAction(PlayerbotAI* botAI) : CastBuffSpellAction(botAI, "presence of mind") {}
 };
 
-class CastIcyVeinsAction : public CastBuffSpellAction
-{
-public:
-    CastIcyVeinsAction(PlayerbotAI* botAI) : CastBuffSpellAction(botAI, "icy veins") {}
-};
-
 class CastColdSnapAction : public CastBuffSpellAction
 {
 public:
@@ -240,18 +234,6 @@ public:
     CastFireBlastAction(PlayerbotAI* botAI) : CastSpellAction(botAI, "fire blast") {}
 };
 
-class CastArcaneBlastAction : public CastSpellAction
-{
-public:
-    CastArcaneBlastAction(PlayerbotAI* botAI) : CastSpellAction(botAI, "arcane blast") {}
-};
-
-class CastArcaneBarrageAction : public CastSpellAction
-{
-public:
-    CastArcaneBarrageAction(PlayerbotAI* botAI) : CastSpellAction(botAI, "arcane barrage") {}
-};
-
 class CastArcaneMissilesAction : public CastSpellAction
 {
 public:
@@ -290,12 +272,6 @@ public:
     CastFrostboltAction(PlayerbotAI* botAI) : CastSpellAction(botAI, "frostbolt") {}
 };
 
-class CastFrostfireBoltAction : public CastSpellAction
-{
-public:
-    CastFrostfireBoltAction(PlayerbotAI* botAI) : CastSpellAction(botAI, "frostfire bolt") {}
-};
-
 class CastIceLanceAction : public CastSpellAction
 {
 public:
@@ -324,13 +300,11 @@ public:
     ActionThreatType getThreatType() override { return ActionThreatType::Aoe; }
 };
 
-inline constexpr uint32 SPELL_GLYPH_OF_BLAST_WAVE = 62126;
-
 class CastBlastWaveAction : public CastKnockbackSpellAction
 {
 public:
     CastBlastWaveAction(PlayerbotAI* botAI) :
-        CastKnockbackSpellAction(botAI, "blast wave", SPELL_GLYPH_OF_BLAST_WAVE) {}
+        CastKnockbackSpellAction(botAI, "blast wave", 0) {}
     ActionThreatType getThreatType() override { return ActionThreatType::Aoe; }
     bool isUseful() override;
 };

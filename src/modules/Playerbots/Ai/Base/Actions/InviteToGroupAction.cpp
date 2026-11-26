@@ -44,10 +44,22 @@ bool InviteToGroupAction::Invite(Player* inviter, Player* player)
             }
     }
 
-    WorldPacket raw(CMSG_PARTY_INVITE);
-    WorldPackets::Party::PartyInviteClient invite(std::move(raw));
-    invite.TargetName = player->GetName();
-    inviter->GetSession()->HandlePartyInviteOpcode(invite);
+    // The invite writes the invitee's m_groupInvite and GroupMgr state (both shared across maps),
+    // so it runs in the world tick window. The inviter is resolved by guid there: it can be this
+    // bot or the master.
+    ObjectGuid const inviterGuid = inviter->GetGUID();
+    ObjectGuid const inviteeGuid = player->GetGUID();
+    std::string const inviteeName = player->GetName();
+    botAI->RunOnWorldThread("party invite", [inviterGuid, inviteeGuid, inviteeName](Player*) {
+        Player* inviter = ObjectAccessor::FindConnectedPlayer(inviterGuid);
+        if (!inviter)
+            return;
+
+        WorldPacket raw(CMSG_PARTY_INVITE);
+        WorldPackets::Party::PartyInviteClient invite(std::move(raw));
+        invite.TargetName = inviteeName;
+        inviter->GetSession()->HandlePartyInviteOpcode(invite);
+    });
 
     return true;
 }

@@ -29,6 +29,10 @@ enum class TalentsApplyResult : uint8
 // specialization and purchased ranks match its last walk is skipped (Ok without walking).
 // force = true bypasses the one-walk-per-world-loop duty cycle but keeps the walk budget
 // (factory context: batches of bots at creation, the world is quiet).
+// The walk rebuilds the config from the granted ranks only, so it is also what brings a bot
+// back in line whose level went down: the new level pays for fewer points and the walk places
+// exactly those. A normal level-up does not need it - GiveLevel raises the point budget and the
+// levelup packet drives AutoMaintenanceOnLevelupAction::AutoPickTalents, which calls the factory.
 TalentsApplyResult ApplyClassicTalents(Player* bot, bool force = false);
 
 // Learns an explicit Wowhead Forever talent calculator code in place of the static build

@@ -159,14 +159,6 @@ void ArmsWarriorStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
         )
     );
 
-    triggers.push_back(
-        new TriggerNode(
-            "sudden death",
-            {
-                NextAction("execute", ACTION_HIGH + 5)
-            }
-        )
-    );
 
     triggers.push_back(
         new TriggerNode(
@@ -186,14 +178,6 @@ void ArmsWarriorStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
         )
     );
 
-    triggers.push_back(
-        new TriggerNode(
-            "taste for blood",
-            {
-                NextAction("overpower", ACTION_HIGH + 4)
-            }
-        )
-    );
 
     triggers.push_back(
         new TriggerNode(

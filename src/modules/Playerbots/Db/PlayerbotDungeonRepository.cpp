@@ -15,10 +15,6 @@
 #include "Timer.h"
 #include "World.h"
 
-std::vector<DungeonSuggestion> const PlayerbotDungeonRepository::GetDungeonSuggestions()
-{
-    return m_dungeonSuggestions;
-}
 
 void PlayerbotDungeonRepository::LoadDungeonSuggestions()
 {

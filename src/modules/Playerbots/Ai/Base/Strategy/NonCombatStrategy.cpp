@@ -22,18 +22,6 @@ void MountStrategy::InitTriggers(std::vector<TriggerNode*>& /*triggers*/)
 {
 }
 
-void WorldBuffStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
-{
-    triggers.push_back(
-        new TriggerNode(
-            "need world buff",
-            {
-                NextAction("world buff", 1.0f)
-            }
-        )
-    );
-}
-
 void MasterFishingStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
 {
     triggers.push_back(

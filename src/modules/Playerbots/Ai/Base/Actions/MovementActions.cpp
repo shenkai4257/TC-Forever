@@ -1419,7 +1419,7 @@ bool MovementAction::Flee(Unit* target)
                 {
                     spareTarget = player;
                     spareDistance = distanceToFlee;
-                    possibleTargets.push_back(fleeTarget);
+                    possibleTargets.push_back(spareTarget);
                 }
             }
 

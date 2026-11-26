@@ -38,14 +38,6 @@ void BeastMasteryHunterStrategy::InitTriggers(std::vector<TriggerNode*>& trigger
     );
     triggers.push_back(
         new TriggerNode(
-            "kill command",
-            {
-                NextAction("kill command", 18.5f)
-            }
-        )
-    );
-    triggers.push_back(
-        new TriggerNode(
             "target critical health",
             {
             }

@@ -66,7 +66,6 @@
 #include "UseItemAction.h"
 #include "VehicleActions.h"
 #include "WaitForAttackAction.h"
-#include "WorldBuffAction.h"
 #include "XpGainAction.h"
 
 class PlayerbotAI;
@@ -187,7 +186,6 @@ public:
         creators["move to dark portal"] = &ActionContext::move_to_dark_portal;
         creators["move from dark portal"] = &ActionContext::move_from_dark_portal;
         creators["use dark portal azeroth"] = &ActionContext::use_dark_portal_azeroth;
-        creators["world buff"] = &ActionContext::world_buff;
         creators["hearthstone"] = &ActionContext::hearthstone;
         creators["cast random spell"] = &ActionContext::cast_random_spell;
         creators["use random recipe"] = &ActionContext::use_random_recipe;
@@ -378,7 +376,6 @@ private:
     static Action* move_to_dark_portal(PlayerbotAI* botAI) { return new MoveToDarkPortalAction(botAI); }
     static Action* use_dark_portal_azeroth(PlayerbotAI* botAI) { return new DarkPortalAzerothAction(botAI); }
     static Action* move_from_dark_portal(PlayerbotAI* botAI) { return new MoveFromDarkPortalAction(botAI); }
-    static Action* world_buff(PlayerbotAI* botAI) { return new WorldBuffAction(botAI); }
     static Action* hearthstone(PlayerbotAI* botAI) { return new UseHearthStone(botAI); }
     static Action* cast_random_spell(PlayerbotAI* botAI) { return new CastRandomSpellAction(botAI); }
 

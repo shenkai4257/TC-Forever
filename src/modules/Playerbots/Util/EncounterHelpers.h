@@ -200,9 +200,6 @@ Player* GetNearestPlayerInRadius(Player* bot, float radius);
 bool IsDpsCooldownAction(Player* bot, Action* action);
 // Includes both single-target and AoE taunts.
 bool IsTauntAction(Player* bot, Action* action);
-// These abilities (e.g., Avenger's Shield) can be problematic on the pull for a council-type boss.
-// Covers tanks only.
-bool IsAoeThreatAction(Player* bot, Action* action);
 // Attacks and casts a dps hold covers: any AttackAction or CastSpellAction, except a non-tank's
 // heals.
 bool IsDpsHoldCandidate(Player* bot, Action* action);

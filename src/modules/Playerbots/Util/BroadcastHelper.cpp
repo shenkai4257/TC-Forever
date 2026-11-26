@@ -22,45 +22,6 @@ uint8 BroadcastHelper::GetLocale()
     return locale;
 }
 
-bool BroadcastHelper::BroadcastTest(PlayerbotAI* botAI, Player* /* bot */)
-{
-    //return something to ignore the logic
-    return false;
-
-    std::map<std::string, std::string> placeholders;
-    placeholders["%rand1"] = std::to_string(urand(0, 1));
-    placeholders["%rand2"] = std::to_string(urand(0, 1));
-    placeholders["%rand3"] = std::to_string(urand(0, 1));
-
-    int32 rand = urand(0, 1);
-
-    if (rand == 1 && botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to trade, %rand1, %rand2, %rand3", placeholders), ChatChannelId::TRADE))
-        return true;
-    else if (botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to GuildRecruitment, %rand1, %rand2, %rand3", placeholders), ChatChannelId::GUILD_RECRUITMENT))
-        return true;
-
-    return botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to trade, %rand1, %rand2, %rand3", placeholders), ChatChannelId::TRADE);
-
-    //int32 rand = urand(1, 8);
-    if (rand == 1 && botAI->SayToGuild(PlayerbotTextMgr::instance().GetBotText("Posted to guild, %rand1, %rand2, %rand3", placeholders)))
-        return true;
-    else if (rand == 2 && botAI->SayToWorld(PlayerbotTextMgr::instance().GetBotText("Posted to world, %rand1, %rand2, %rand3", placeholders)))
-        return true;
-    else if (rand == 3 && botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to general, %rand1, %rand2, %rand3", placeholders), ChatChannelId::GENERAL))
-        return true;
-    else if (rand == 4 && botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to trade, %rand1, %rand2, %rand3", placeholders), ChatChannelId::TRADE))
-        return true;
-    else if (rand == 5 && botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to LFG, %rand1, %rand2, %rand3", placeholders), ChatChannelId::LOOKING_FOR_GROUP))
-        return true;
-    else if (rand == 6 && botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to LocalDefense, %rand1, %rand2, %rand3", placeholders), ChatChannelId::LOCAL_DEFENSE))
-        return true;
-    else if (rand == 7 && botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to WorldDefense, %rand1, %rand2, %rand3", placeholders), ChatChannelId::WORLD_DEFENSE))
-        return true;
-    else if (rand == 8 && botAI->SayToChannel(PlayerbotTextMgr::instance().GetBotText("Posted to GuildRecruitment, %rand1, %rand2, %rand3", placeholders), ChatChannelId::GUILD_RECRUITMENT))
-        return true;
-
-    return false;
-}
 
 /**
 @param toChannels - map of (ToChannel, chance), where chance is in range 0-100 as uint32 (unless global chance is not 100%)
@@ -692,30 +653,6 @@ bool BroadcastHelper::BroadcastSuggestQuest(PlayerbotAI* botAI, std::vector<uint
     return false;
 }
 
-bool BroadcastHelper::BroadcastSuggestGrindMaterials(PlayerbotAI* botAI, std::string item, Player* bot)
-{
-    if (!sPlayerbotAIConfig.EnableBroadcasts)
-        return false;
-    if (urand(1, sPlayerbotAIConfig.BroadcastChanceMaxValue) <= sPlayerbotAIConfig.BroadcastChanceSuggestGrindMaterials)
-    {
-
-        std::map<std::string, std::string> placeholders;
-        placeholders["%my_role"] = ChatHelper::FormatClass(bot, AiFactory::GetPlayerSpecTab(bot));
-        placeholders["%category"] = item;
-
-        placeholders["%my_class"] = botAI->GetChatHelper()->FormatClass(bot->GetClass());
-        placeholders["%my_race"] = botAI->GetChatHelper()->FormatRace(bot->GetRace());
-        placeholders["%my_level"] = std::to_string(bot->GetLevel());
-
-        return BroadcastToChannelWithGlobalChance(
-            botAI,
-            PlayerbotTextMgr::instance().GetBotText("suggest_trade", placeholders),
-            { {TO_TRADE, 50}, {TO_LOOKING_FOR_GROUP, 50}, {TO_GUILD, 50}, {TO_WORLD, 50}, {TO_GENERAL, 100} }
-        );
-    }
-
-    return false;
-}
 
 bool BroadcastHelper::BroadcastSuggestGrindReputation(PlayerbotAI* botAI, std::vector<std::string> levels, std::vector<std::string> allowedFactions, Player* bot)
 {

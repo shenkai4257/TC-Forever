@@ -52,9 +52,11 @@ bool ReleaseSpiritAction::Execute(Event event)
     bot->DurabilityRepairAll(false, 1.0f, false);
     LogRelease("released");
 
-    WorldPacket rawRepop(CMSG_REPOP_REQUEST);
-    WorldPackets::Misc::RepopRequest repop(std::move(rawRepop));
-    bot->GetSession()->HandleRepopRequest(repop);
+    botAI->RunOnWorldThread("repop", [](Player* bot) {
+        WorldPacket rawRepop(CMSG_REPOP_REQUEST);
+        WorldPackets::Misc::RepopRequest repop(std::move(rawRepop));
+        bot->GetSession()->HandleRepopRequest(repop);
+    });
 
     return true;
 }
@@ -93,9 +95,11 @@ bool AutoReleaseSpiritAction::Execute(Event /*event*/)
     bot->DurabilityRepairAll(false, 1.0f, false);
     LogRelease("auto released");
 
-    WorldPacket rawRepop(CMSG_REPOP_REQUEST);
-    WorldPackets::Misc::RepopRequest repop(std::move(rawRepop));
-    bot->GetSession()->HandleRepopRequest(repop);
+    botAI->RunOnWorldThread("repop", [](Player* bot) {
+        WorldPacket rawRepop(CMSG_REPOP_REQUEST);
+        WorldPackets::Misc::RepopRequest repop(std::move(rawRepop));
+        bot->GetSession()->HandleRepopRequest(repop);
+    });
 
     LogRelease("releases spirit");
 
@@ -180,9 +184,11 @@ bool SelfResurrectAction::Execute(Event /*event*/)
 {
     if (!bot->IsAlive() && !(bot->m_activePlayerData->SelfResSpells.empty()))
     {
-        WorldPacket rawSelfRes(CMSG_SELF_RES);
-        WorldPackets::Spells::SelfRes selfRes(std::move(rawSelfRes));
-        bot->GetSession()->HandleSelfResOpcode(selfRes);
+        botAI->RunOnWorldThread("self resurrect", [](Player* bot) {
+            WorldPacket rawSelfRes(CMSG_SELF_RES);
+            WorldPackets::Spells::SelfRes selfRes(std::move(rawSelfRes));
+            bot->GetSession()->HandleSelfResOpcode(selfRes);
+        });
         return true;
     }
     return false;

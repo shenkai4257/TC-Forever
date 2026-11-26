@@ -93,13 +93,6 @@ public:
     IntimidationTrigger(PlayerbotAI* botAI) : BuffTrigger(botAI, "intimidation") {}
 };
 
-class KillCommandTrigger : public BuffTrigger
-{
-public:
-    KillCommandTrigger(PlayerbotAI* botAI) : BuffTrigger(botAI, "kill command") {}
-    bool IsActive() override;
-};
-
 
 // CC Triggers
 

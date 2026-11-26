@@ -145,7 +145,8 @@ void InventoryAction::TellItems(std::map<uint32, uint32> itemMap, std::map<uint3
     std::vector<ItemTemplate const*> items;
     for (std::map<uint32, uint32>::iterator i = itemMap.begin(); i != itemMap.end(); i++)
     {
-        items.push_back(sObjectMgr->GetItemTemplate(i->first));
+        if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(i->first))
+            items.push_back(proto);
     }
 
     std::sort(items.begin(), items.end(), compare_items);

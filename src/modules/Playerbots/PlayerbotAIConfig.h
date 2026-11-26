@@ -105,9 +105,16 @@ public:
 
     bool Enabled;
     bool DisabledWithoutRealPlayer;
-    bool EnableICCBuffs;
     bool AllowAccountBots, AllowGuildBots, AllowTrustedAccountBots;
-    bool RandomBotGuildNearby, RandomBotInvitePlayer, InviteChat;
+    bool RandomBotGuildNearby, InviteChat;
+    bool RandomBotInvitePlayer;
+
+    bool LogInGroupOnly, LogValuesPerTick;
+    float RandomChangeMultiplier;
+    bool TellWhenAvoidAoe;
+    uint32 IterationsPerTick;
+    uint32 CommandServerPort;
+
     uint32 GlobalCoolDown, ReactDelay, MaxWaitForMove, DisableMoveSplinePath, MaxMovementSearchTime, ExpireActionTime,
         DispelAuraDuration, PassiveDelay, RepeatDelay, ErrorDelay, RpgDelay, SitDelay, ReturnDelay, LootDelay;
     bool DynamicReactDelay;
@@ -128,7 +135,6 @@ public:
     bool AutoAvoidAoe;
     float MaxAoeAvoidRadius;
     std::set<uint32> AoeAvoidSpellWhitelist;
-    bool TellWhenAvoidAoe;
     std::set<uint32> DisallowedGameObjects;
     std::set<uint32> AttunementQuests;
     std::set<uint32> UnobtainableItems;
@@ -252,14 +258,12 @@ public:
 
     uint32 RandomBotTeleLowerLevel, RandomBotTeleHigherLevel;
     std::map<uint32, std::pair<uint32, uint32>> ZoneBrackets;
-    bool LogInGroupOnly, LogValuesPerTick;
     bool SummonAtInnkeepersEnabled;
     std::string CombatStrategies, NonCombatStrategies;
     std::string RandomBotCombatStrategies, RandomBotNonCombatStrategies;
     std::string ReactStrategies, RandomBotReactStrategies;
     bool ApplyInstanceStrategies;
     uint32 RandomBotMinLevel, RandomBotMaxLevel;
-    float RandomChangeMultiplier;
 
     // std::string premadeLevelSpec[MAX_CLASSES][10][91]; //lvl 10 - 100
     // ClassSpecs classSpecs[MAX_CLASSES];
@@ -292,8 +296,6 @@ public:
     uint32 GuildTaskAdvertCleanupTime;
     uint32 GuildTaskKillTaskDistance;
 
-    uint32 IterationsPerTick;
-
     std::mutex LogMutex;
     bool EnableAutoTradeOnItemMention;
     std::vector<std::string> TradeActionExcludedPrefixes;
@@ -303,19 +305,7 @@ public:
     std::vector<std::string> BotCheats;
     uint32 BotCheatMask = 0;
 
-    struct WorldBuff
-    {
-        uint32 SpellId;
-        uint32 FactionId;
-        uint32 ClassId;
-        uint32 SpecId;
-        uint32 MinLevel;
-        uint32 MaxLevel;
-    };
 
-    std::vector<WorldBuff> WorldBuffs;
-
-    uint32 CommandServerPort;
     bool PerfMonEnabled;
     bool SummonWhenGroup;
     ShowHideCosmetic RandomBotShowHelmet;
@@ -342,7 +332,6 @@ public:
     int32 LootNeedRollLevel;
     bool LootGreedRollLevel;
     bool LootRollRecipe;
-    bool LootRollDisenchant;
     std::string AutoPickReward;
     bool AutoEquipUpgradeLoot;
     float EquipUpgradeThreshold;
@@ -434,7 +423,6 @@ public:
     }
     void LogToFile(std::string const fileName, char const* str, ...);
 
-    void LoadWorldBuff();
 
 
     bool RestrictHealerDPS = false;

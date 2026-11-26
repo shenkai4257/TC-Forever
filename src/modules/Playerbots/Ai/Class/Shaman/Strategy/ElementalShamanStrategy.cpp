@@ -47,14 +47,6 @@ void ElementalShamanStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     );
 
     // Cooldown Trigger
-    triggers.push_back(
-        new TriggerNode(
-            "elemental mastery",
-            {
-                NextAction("elemental mastery", 29.0f)
-            }
-        )
-    );
 
     // Damage Triggers
     triggers.push_back(

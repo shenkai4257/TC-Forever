@@ -7,14 +7,23 @@
 #include "Chat.h"
 #include "ChatCommand.h"
 #include "ChatCommandTags.h"
+#include "DatabaseEnv.h"
+#include "GridDefines.h"
 #include "GuildTaskMgr.h"
+#include "Map.h"
+#include "MapManager.h"
 #include "PerfMonitor.h"
+#include "PhasingHandler.h"
 #include "PlayerbotAI.h"
 #include "PlayerbotMgr.h"
 #include "RBAC.h"
+#include "Random.h"
 #include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
 #include "StringFormat.h"
+#include <fstream>
+#include <sstream>
+#include <unordered_map>
 
 using namespace Trinity::ChatCommands;
 
@@ -42,6 +51,7 @@ public:
             {"inspect", HandleInspectCommand, rbac::RBAC_ROLE_GAMEMASTER, Console::Yes},
             {"gtask", HandleGuildTaskCommand, rbac::RBAC_ROLE_GAMEMASTER, Console::Yes},
             {"pmon", HandlePerfMonCommand, rbac::RBAC_ROLE_GAMEMASTER, Console::Yes},
+            {"spawnimport", HandleSpawnImportCommand, rbac::RBAC_ROLE_GAMEMASTER, Console::Yes},
             {"rndbot", HandleRandomPlayerbotCommand, rbac::RBAC_ROLE_GAMEMASTER, Console::Yes},
             {"account", playerbotsAccountCommandTable},
         };
@@ -151,6 +161,70 @@ public:
 
         sPerfMonitor.PrintStats();
         sPerfMonitor.DumpJson(false);
+        return true;
+    }
+
+    // One-shot import of the Forever community spawn points (forever-db spm/spw segments).
+    // Those carry planar coordinates only (a Questie-style addon needs no more), so the ground
+    // height is resolved here through vmaps before the creature row is written. File format,
+    // one point per line: entry<TAB>map<TAB>areaId<TAB>x<TAB>y
+    // Guids start at 930000000, above the compacted range (max 920014001), so a re-run inserts a
+    // second copy - check world.creature first when importing a newer snapshot.
+    static bool HandleSpawnImportCommand(ChatHandler* handler, char const* args)
+    {
+        std::string const path = (args && *args) ? args : "/home/shenk/tools/tmp/spawn_import.tsv";
+        std::ifstream in(path);
+        if (!in)
+        {
+            handler->SendSysMessage(Trinity::StringFormat("spawn import: cannot open {}", path));
+            return false;
+        }
+
+        PhaseShift const& phase = PhasingHandler::GetEmptyPhaseShift();
+        std::unordered_map<uint32, Map*> maps;
+        uint32 inserted = 0, noGround = 0, badLine = 0;
+        uint64 guid = 930000000;
+        std::string line;
+        while (std::getline(in, line))
+        {
+            if (line.empty() || line[0] == '#')
+                continue;
+
+            std::istringstream fields(line);
+            uint32 entry = 0, mapId = 0, areaId = 0;
+            float x = 0.0f, y = 0.0f;
+            if (!(fields >> entry >> mapId >> areaId >> x >> y))
+            {
+                ++badLine;
+                continue;
+            }
+
+            auto [itr, created] = maps.try_emplace(mapId, nullptr);
+            if (created)
+                itr->second = sMapMgr->PrewarmContinentMap(mapId);
+            Map* map = itr->second;
+            if (!map)
+            {
+                ++badLine;
+                continue;
+            }
+
+            float const z = map->GetHeight(phase, x, y, MAX_HEIGHT, true);
+            if (z <= INVALID_HEIGHT + 1.0f)
+            {
+                ++noGround;
+                continue;
+            }
+
+            WorldDatabase.PExecute(
+                "INSERT INTO creature (guid, id, map, zoneId, areaId, position_x, position_y, position_z, orientation, spawntimesecs)"
+                " VALUES ({}, {}, {}, 0, {}, {}, {}, {}, {}, 300)",
+                guid++, entry, mapId, areaId, x, y, z, float(urand(0, 628)) / 100.0f);
+            ++inserted;
+        }
+
+        handler->SendSysMessage(Trinity::StringFormat(
+            "spawn import: inserted {}, no ground found {}, bad lines {} (from {})", inserted, noGround, badLine, path));
         return true;
     }
 

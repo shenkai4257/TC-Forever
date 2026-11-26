@@ -87,11 +87,8 @@ public:
         creators["taunt on snare target"] = &WarriorTriggerFactoryInternal::taunt_on_snare_target;
         creators["commanding shout"] = &WarriorTriggerFactoryInternal::commanding_shout;
         creators["intercept on snare target"] = &WarriorTriggerFactoryInternal::intercept_on_snare_target;
-        creators["sudden death"] = &WarriorTriggerFactoryInternal::sudden_death;
-        creators["instant slam"] = &WarriorTriggerFactoryInternal::instant_slam;
         creators["shockwave"] = &WarriorTriggerFactoryInternal::shockwave;
         creators["shockwave on snare target"] = &WarriorTriggerFactoryInternal::shockwave_on_snare_target;
-        creators["taste for blood"] = &WarriorTriggerFactoryInternal::taste_for_blood;
         creators["thunder clap and rage"] = &WarriorTriggerFactoryInternal::thunderclap_and_rage;
         creators["intercept can cast"] = &WarriorTriggerFactoryInternal::intercept_can_cast;
         creators["intercept and far enemy"] = &WarriorTriggerFactoryInternal::intercept_and_far_enemy;
@@ -134,11 +131,8 @@ private:
         return new TwoTriggers(botAI, "intercept and far enemy", "light rage available");
     }
     static Trigger* intercept_on_snare_target(PlayerbotAI* botAI) { return new InterceptSnareTrigger(botAI); }
-    static Trigger* taste_for_blood(PlayerbotAI* botAI) { return new TasteForBloodTrigger(botAI); }
     static Trigger* shockwave_on_snare_target(PlayerbotAI* botAI) { return new ShockwaveSnareTrigger(botAI); }
     static Trigger* shockwave(PlayerbotAI* botAI) { return new ShockwaveTrigger(botAI); }
-    static Trigger* instant_slam(PlayerbotAI* botAI) { return new SlamInstantTrigger(botAI); }
-    static Trigger* sudden_death(PlayerbotAI* botAI) { return new SuddenDeathTrigger(botAI); }
     static Trigger* commanding_shout(PlayerbotAI* botAI) { return new CommandingShoutTrigger(botAI); }
     static Trigger* taunt_on_snare_target(PlayerbotAI* botAI) { return new TauntSnareTrigger(botAI); }
     static Trigger* intercept(PlayerbotAI* botAI) { return new InterceptInterruptSpellTrigger(botAI); }

@@ -35,29 +35,39 @@ bool AcceptInvitationAction::Execute(Event /*event*/)
     if (bot->isAFK() && !IsSelfBot(bot))
         bot->ToggleAFK();
 
-    // 12.x handlers take structured packets instead of a forged client packet.
-    WorldPacket payload(CMSG_PARTY_INVITE_RESPONSE, 1);
-    WorldPackets::Party::PartyInviteResponse accept(std::move(payload));
-    accept.Accept = true;
-    bot->GetSession()->HandlePartyInviteResponseOpcode(accept);
-
-    if (!bot->GetGroup() || !bot->GetGroup()->IsMember(inviter->GetGUID()))
-        return false;
-
-    if (sRandomPlayerbotMgr.IsRandomBot(bot))
-        botAI->SetMaster(inviter);
-    // else
-    // PlayerbotRepository::instance().Save(botAI);
-
-    botAI->ResetStrategies();
-    botAI->ChangeStrategy("+follow", BOT_STATE_NON_COMBAT);
-    botAI->Reset();
-
-    botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("hello", "Hello", {}));
-
-    if (sPlayerbotAIConfig.SummonWhenGroup && bot->GetDistance(inviter) > sPlayerbotAIConfig.SightDistance)
+    // Accept and everything that must observe its result (group membership, master assignment,
+    // strategy reset, follow, summon) form one world-thread step: the group is created on the world
+    // thread and the inviter may sit on any other map. The AI and the summon helper are resolved
+    // fresh inside - this action object is gone by the time the lambda runs.
+    ObjectGuid const inviterGuid = inviter->GetGUID();
+    bool const randomBot = sRandomPlayerbotMgr.IsRandomBot(bot);
+    botAI->RunOnWorldThread("party invite accept", [inviterGuid, randomBot](Player* bot)
     {
-        Teleport(inviter, bot, true);
-    }
+        WorldPacket payload(CMSG_PARTY_INVITE_RESPONSE, 1);
+        WorldPackets::Party::PartyInviteResponse accept(std::move(payload));
+        accept.Accept = true;
+        bot->GetSession()->HandlePartyInviteResponseOpcode(accept);
+
+        PlayerbotAI* ai = sPlayerbotsMgr.GetPlayerbotAI(bot);
+        Player* inviter = ObjectAccessor::FindConnectedPlayer(inviterGuid);
+        if (!ai || !inviter || !bot->GetGroup() || !bot->GetGroup()->IsMember(inviterGuid))
+            return;
+
+        if (randomBot)
+            ai->SetMaster(inviter);
+
+        ai->ResetStrategies();
+        ai->ChangeStrategy("+follow", BOT_STATE_NON_COMBAT);
+        ai->Reset();
+
+        ai->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault("hello", "Hello", {}));
+
+        if (sPlayerbotAIConfig.SummonWhenGroup && bot->GetDistance(inviter) > sPlayerbotAIConfig.SightDistance)
+        {
+            // The teleport helper is stateless besides its AI: a throwaway instance avoids holding
+            // on to this (long gone) action object.
+            SummonAction(ai, "accept invitation summon").Teleport(inviter, bot, true);
+        }
+    });
     return true;
 }

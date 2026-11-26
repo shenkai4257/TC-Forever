@@ -79,12 +79,21 @@ bool TradeStatusAction::Execute(Event event)
     // BACK_TO_TRADE status anymore (un-accepting sends TRADE_STATUS_UNACCEPTED).
     if (status == TRADE_STATUS_ACCEPTED)
     {
-        WorldPacket raw(CMSG_ACCEPT_TRADE);
-        WorldPackets::Trade::AcceptTrade accept(std::move(raw));
+        // Accept and everything that must observe its result (trade data gone = completed, craft
+        // progress, guild tasks, discount restore) form one world-thread step: the trade completes
+        // on the world thread and the partner may sit on any other map.
+        if (!CheckTrade())
+            return false;
 
-        uint32 discount = sRandomPlayerbotMgr.GetTradeDiscount(bot, trader);
-        if (CheckTrade())
+        ObjectGuid const traderGuid = trader->GetGUID();
+        uint32 const discount = sRandomPlayerbotMgr.GetTradeDiscount(bot, trader);
+        botAI->RunOnWorldThread("trade accept", [traderGuid, discount](Player* bot)
         {
+            Player* trader = ObjectAccessor::FindConnectedPlayer(traderGuid);
+            PlayerbotAI* botAI = trader ? sPlayerbotsMgr.GetPlayerbotAI(bot) : nullptr;
+            if (!trader || !botAI || !trader->GetTradeData() || !bot->GetTradeData())
+                return;
+
             std::map<uint32, uint32> givenItemIds, takenItemIds;
             for (uint32 slot = 0; slot < TRADE_SLOT_TRADED_COUNT; ++slot)
             {
@@ -97,13 +106,15 @@ bool TradeStatusAction::Execute(Event event)
                     takenItemIds[item->GetTemplate()->GetId()] += item->GetCount();
             }
 
+            WorldPacket raw(CMSG_ACCEPT_TRADE);
+            WorldPackets::Trade::AcceptTrade accept(std::move(raw));
             // the server checks the accept against the partner's current server state index
             accept.StateIndex = trader->GetTradeData()->GetServerStateIndex();
             bot->GetSession()->HandleAcceptTradeOpcode(accept);
             if (bot->GetTradeData())
             {
                 sRandomPlayerbotMgr.SetTradeDiscount(bot, trader, discount);
-                return false;
+                return;
             }
 
             for (std::map<uint32, uint32>::iterator i = givenItemIds.begin(); i != givenItemIds.end(); ++i)
@@ -111,7 +122,7 @@ bool TradeStatusAction::Execute(Event event)
                 uint32 itemId = i->first;
                 uint32 count = i->second;
 
-                CraftData& craftData = AI_VALUE(CraftData&, "craft");
+                CraftData& craftData = botAI->GetAiObjectContext()->GetValue<CraftData&>("craft")->Get();
                 if (!craftData.IsEmpty() && craftData.IsRequired(itemId))
                     craftData.AddObtained(itemId, count);
 
@@ -123,13 +134,12 @@ bool TradeStatusAction::Execute(Event event)
                 uint32 itemId = i->first;
                 uint32 count = i->second;
 
-                CraftData& craftData = AI_VALUE(CraftData&, "craft");
+                CraftData& craftData = botAI->GetAiObjectContext()->GetValue<CraftData&>("craft")->Get();
                 if (!craftData.IsEmpty() && craftData.itemId == itemId)
                     craftData.Crafted(count);
             }
-
-            return true;
-        }
+        });
+        return true;
     }
     else if (status == TRADE_STATUS_PROPOSED)
     {
@@ -175,9 +185,11 @@ void TradeStatusAction::BeginTrade()
     if (!trader || (GET_PLAYERBOT_AI(trader) && !IsSelfBot(trader)))
         return;
 
-    WorldPacket raw(CMSG_BEGIN_TRADE);
-    WorldPackets::Trade::BeginTrade begin(std::move(raw));
-    bot->GetSession()->HandleBeginTradeOpcode(begin);
+    botAI->RunOnWorldThread("trade begin", [](Player* bot) {
+        WorldPacket raw(CMSG_BEGIN_TRADE);
+        WorldPackets::Trade::BeginTrade begin(std::move(raw));
+        bot->GetSession()->HandleBeginTradeOpcode(begin);
+    });
 }
 
 void TradeStatusAction::CancelTrade()

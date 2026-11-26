@@ -200,17 +200,6 @@ public:
         CastBuffSpellAction(botAI, "revive pet") {}
 };
 
-class CastKillCommandAction : public CastBuffSpellAction
-{
-public:
-    CastKillCommandAction(PlayerbotAI* botAI) :
-        CastBuffSpellAction(botAI, "kill command", false, 5000) {}
-    std::string const GetTargetName() override
-    {
-        return "pet target";
-    }
-};
-
 class CastBestialWrathAction : public CastBuffSpellAction
 {
 public:

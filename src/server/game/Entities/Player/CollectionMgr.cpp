@@ -117,6 +117,12 @@ void CollectionMgr::LoadCharacterData()
 
 void CollectionMgr::SaveToDB(LoginDatabaseTransaction trans)
 {
+    // Headless bot sessions have no battle.net account: every table saved below is account-scoped
+    // and its foreign key points at battlenet_accounts, so a bot save only produces failed inserts
+    // (battlenet_account_transmog_illusions alone logged ~5.7k foreign key errors per session).
+    if (_owner && _owner->IsBot())
+        return;
+
     SaveAccountToys(trans);
     SaveAccountHeirlooms(trans);
     SaveAccountMounts(trans);

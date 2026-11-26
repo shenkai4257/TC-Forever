@@ -578,6 +578,49 @@ constexpr TalentEnglishName kTalentEnglishNames[] = {
     { 1328617, "Lacerate", nullptr },
     { 1329328, "Venom", nullptr },
     { 1329555, "Reckless Swings", nullptr },
+    // Filled in from the client trait data (TraitDefinition.SpellID -> hotfixes.spell_name, 2026-11-26):
+    // these talents exist in the 1.60 trees but had no English entry here, so every build pick naming
+    // them was reported as "build talents not found" and silently skipped.
+    { 402000, "Soul Warding", nullptr },
+    { 415370, "Lone Wolf", nullptr },
+    { 415405, "Rapid Killing", nullptr },
+    { 425280, "Renewed Hope", nullptr },
+    { 426065, "Infusion of Light", nullptr },
+    { 429144, "Purifying Power", nullptr },
+    { 431622, "Divine Aegis", nullptr },
+    { 440529, "Resourcefulness", nullptr },
+    { 1223984, "Careful Aim", nullptr },
+    { 1225132, "Twin Disciplines", nullptr },
+    { 1237268, "Holy Conduit", nullptr },
+    { 1310316, "Master of Defense", nullptr },
+    { 1310317, "Vanguard", nullptr },
+    { 1310627, "Predator's Edge", nullptr },
+    { 1310661, "Improved Stings", nullptr },
+    { 1310899, "Reverence", nullptr },
+    { 1311087, "Sacred Arbiter", nullptr },
+    { 1328544, "Shieldsworn", nullptr },
+    // Second pass (2026-11-26, same source): picks that the first sweep did not catch because
+    // talent_data_check.py only compared against the client data back then; it now also asks
+    // whether the English name exists here, which is what FindTalent actually resolves through.
+    { 18073, "Pyroclasm", nullptr },
+    { 30812, "Mental Quickness", nullptr },
+    { 400588, "Missile Barrage", nullptr },
+    { 400624, "Heating Up", nullptr },
+    { 403511, "Improved Drains", nullptr },
+    { 408438, "Lightning Overload", nullptr },
+    { 408490, "Lava Burst", nullptr },
+    { 415140, "Mental Dexterity", nullptr },
+    { 427712, "Pandemic", nullptr },
+    { 440870, "Decimation", nullptr },
+    { 1222988, "Earthbound", nullptr },
+    { 1223030, "Shamanistic Focus", nullptr },
+    { 1223031, "Improved Stormstrike", nullptr },
+    { 1223081, "Genesis", nullptr },
+    { 1223246, "Rend and Tear", nullptr },
+    { 1224697, "Sacred Duty", nullptr },
+    { 1310315, "Improved Whirlwind", nullptr },
+    { 1310949, "Malevolence", nullptr },
+    { 1323963, "Furious Precision", nullptr },
 };
 
 // old = the 1.12 spelling only (where it differs), else the 1.60 spelling

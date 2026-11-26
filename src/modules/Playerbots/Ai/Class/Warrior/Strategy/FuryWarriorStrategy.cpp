@@ -149,14 +149,6 @@ void FuryWarriorStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     );
     triggers.push_back(
         new TriggerNode(
-            "instant slam",
-            {
-                NextAction("slam", ACTION_HIGH + 5)
-            }
-        )
-    );
-    triggers.push_back(
-        new TriggerNode(
             "bloodrage",
             {
                 NextAction("bloodrage", ACTION_HIGH + 2)

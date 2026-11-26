@@ -59,9 +59,6 @@ INTERRUPT_HEALER_TRIGGER(PummelInterruptEnemyHealerSpellTrigger, "pummel");
 INTERRUPT_TRIGGER(PummelInterruptSpellTrigger, "pummel");
 INTERRUPT_HEALER_TRIGGER(InterceptInterruptEnemyHealerSpellTrigger, "intercept");
 INTERRUPT_TRIGGER(InterceptInterruptSpellTrigger, "intercept");
-HAS_AURA_TRIGGER(SuddenDeathTrigger, "sudden death");
-HAS_AURA_TRIGGER(SlamInstantTrigger, "slam!");
-HAS_AURA_TRIGGER(TasteForBloodTrigger, "taste for blood");
 
 class RendDebuffTrigger : public DebuffTrigger
 {

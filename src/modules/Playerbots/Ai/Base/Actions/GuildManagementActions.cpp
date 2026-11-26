@@ -86,37 +86,49 @@ uint8 GuidManageAction::GetRankId(Player* member)
 
 bool GuildInviteAction::SendManage(Player* member)
 {
-    WorldPacket raw(CMSG_GUILD_INVITE_BY_NAME);
-    WorldPackets::Guild::GuildInviteByName packet(std::move(raw));
-    packet.Name = member->GetName();
-    bot->GetSession()->HandleGuildInviteByName(packet);
+    std::string const memberName = member->GetName();
+    botAI->RunOnWorldThread("guild invite", [memberName](Player* bot) {
+        WorldPacket raw(CMSG_GUILD_INVITE_BY_NAME);
+        WorldPackets::Guild::GuildInviteByName packet(std::move(raw));
+        packet.Name = memberName;
+        bot->GetSession()->HandleGuildInviteByName(packet);
+    });
     return true;
 }
 
 bool GuildPromoteAction::SendManage(Player* member)
 {
-    WorldPacket raw(CMSG_GUILD_PROMOTE_MEMBER);
-    WorldPackets::Guild::GuildPromoteMember packet(std::move(raw));
-    packet.Promotee = member->GetGUID();
-    bot->GetSession()->HandleGuildPromoteMember(packet);
+    ObjectGuid const memberGuid = member->GetGUID();
+    botAI->RunOnWorldThread("guild promote", [memberGuid](Player* bot) {
+        WorldPacket raw(CMSG_GUILD_PROMOTE_MEMBER);
+        WorldPackets::Guild::GuildPromoteMember packet(std::move(raw));
+        packet.Promotee = memberGuid;
+        bot->GetSession()->HandleGuildPromoteMember(packet);
+    });
     return true;
 }
 
 bool GuildDemoteAction::SendManage(Player* member)
 {
-    WorldPacket raw(CMSG_GUILD_DEMOTE_MEMBER);
-    WorldPackets::Guild::GuildDemoteMember packet(std::move(raw));
-    packet.Demotee = member->GetGUID();
-    bot->GetSession()->HandleGuildDemoteMember(packet);
+    ObjectGuid const memberGuid = member->GetGUID();
+    botAI->RunOnWorldThread("guild demote", [memberGuid](Player* bot) {
+        WorldPacket raw(CMSG_GUILD_DEMOTE_MEMBER);
+        WorldPackets::Guild::GuildDemoteMember packet(std::move(raw));
+        packet.Demotee = memberGuid;
+        bot->GetSession()->HandleGuildDemoteMember(packet);
+    });
     return true;
 }
 
 bool GuildRemoveAction::SendManage(Player* member)
 {
-    WorldPacket raw(CMSG_GUILD_OFFICER_REMOVE_MEMBER);
-    WorldPackets::Guild::GuildOfficerRemoveMember packet(std::move(raw));
-    packet.Removee = member->GetGUID();
-    bot->GetSession()->HandleGuildOfficerRemoveMember(packet);
+    ObjectGuid const memberGuid = member->GetGUID();
+    botAI->RunOnWorldThread("guild remove", [memberGuid](Player* bot) {
+        WorldPacket raw(CMSG_GUILD_OFFICER_REMOVE_MEMBER);
+        WorldPackets::Guild::GuildOfficerRemoveMember packet(std::move(raw));
+        packet.Removee = memberGuid;
+        bot->GetSession()->HandleGuildOfficerRemoveMember(packet);
+    });
     return true;
 }
 
@@ -339,9 +351,11 @@ bool GuildLeaveAction::Execute(Event event)
         return false;
     }
 
-    WorldPacket raw(CMSG_GUILD_LEAVE);
-    WorldPackets::Guild::GuildLeave packet(std::move(raw));
-    bot->GetSession()->HandleGuildLeave(packet);
+    botAI->RunOnWorldThread("guild leave", [](Player* bot) {
+        WorldPacket raw(CMSG_GUILD_LEAVE);
+        WorldPackets::Guild::GuildLeave packet(std::move(raw));
+        bot->GetSession()->HandleGuildLeave(packet);
+    });
     return true;
 }
 

@@ -208,6 +208,9 @@ void TalkToQuestGiverAction::RewardSingleItem(Quest const* quest, Object* questG
 {
     int index = 0;
     ItemTemplate const* item = sObjectMgr->GetItemTemplate(quest->RewardChoiceItemId[index]);
+    // RewardChoiceItemId can be 0 for quests without a choice reward; FormatItem would deref null.
+    if (!item)
+        return;
     std::map<std::string, std::string> args;
     args["%quest"] = chat->FormatQuest(quest);
     args["%item"] = chat->FormatItem(item);
@@ -283,6 +286,11 @@ void TalkToQuestGiverAction::RewardMultipleItem(Quest const* quest, Object* ques
             }
             ItemTemplate const* item = sObjectMgr->GetItemTemplate(quest->RewardChoiceItemId[best]);
             bot->RewardQuest(quest, LootItemType::Item, best, questGiver, true);
+            if (!item)
+            {
+                out << PlayerbotTextMgr::instance().GetBotText("quest_no_suitable_reward", {});
+                return;
+            }
             out << PlayerbotTextMgr::instance().GetBotText("quest_reward_received",
                                                              {{"%item", ChatHelper::FormatItem(item)}});
         }
@@ -311,6 +319,11 @@ void TalkToQuestGiverAction::RewardMultipleItem(Quest const* quest, Object* ques
             uint32 firstId = *bestIds.begin();
             ItemTemplate const* item = sObjectMgr->GetItemTemplate(quest->RewardChoiceItemId[firstId]);
             bot->RewardQuest(quest, LootItemType::Item, firstId, questGiver, true);
+            if (!item)
+            {
+                out << PlayerbotTextMgr::instance().GetBotText("quest_no_suitable_reward", {});
+                return;
+            }
 
             out << PlayerbotTextMgr::instance().GetBotText("quest_reward_received",
                                                              {{"%item", ChatHelper::FormatItem(item)}});
@@ -326,6 +339,8 @@ void TalkToQuestGiverAction::AskToSelectReward(Quest const* quest, std::ostrings
     for (uint8 i = 0; i < quest->GetRewChoiceItemsCount(); ++i)
     {
         ItemTemplate const* item = sObjectMgr->GetItemTemplate(quest->RewardChoiceItemId[i]);
+        if (!item)
+            continue;
 
         if (!forEquip || BestRewards(quest).count(i) > 0)
         {

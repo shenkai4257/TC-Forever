@@ -169,7 +169,9 @@ Unit* HealerLowMana::Calculate()
 
 Unit* PartyMemberToProtect::Calculate()
 {
-    return nullptr;
+    // Activated (2026-11-26 user decision): the upstream disable predates the port - the trigger
+    // and its strategy mounts (Disc priest / Paladin) are all in place, this value was the only
+    // open switch.
     Group* group = bot->GetGroup();
     if (!group)
         return nullptr;

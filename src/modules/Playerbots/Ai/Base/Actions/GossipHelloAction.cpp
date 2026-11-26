@@ -99,17 +99,35 @@ bool GossipHelloAction::ProcessGossip(int32 menuToSelect, bool silent)
     }
 
     // 12.x selects by GossipOptionID on a structured packet instead of
-    // (menuId, index) on a forged one.
+    // (menuId, index) on a forged one. The select runs on the world thread: gossip options can
+    // trigger SmartScripts (teleports, game events) and guild reads. The refreshed menu is read
+    // inside the same step - TellGossipMenus must observe what the handler produced.
     GossipMenuItem const* picked = menu.GetItem(menuToSelect);
-    WorldPacket payload(CMSG_GOSSIP_SELECT_OPTION, 16);
-    WorldPackets::NPC::GossipSelectOption select(std::move(payload));
-    select.GossipUnit = GetMaster()->GetTarget();
-    select.GossipOptionID = picked ? picked->GossipOptionID : menuToSelect;
-    select.GossipID = menu.GetMenuId();
-    bot->GetSession()->HandleGossipSelectOptionOpcode(select);
+    ObjectGuid const gossipUnit = GetMaster()->GetTarget();
+    uint32 const optionId = picked ? picked->GossipOptionID : uint32(menuToSelect);
+    uint32 const gossipId = menu.GetMenuId();
+    bool const tell = !silent;
+    botAI->RunOnWorldThread("gossip select", [gossipUnit, optionId, gossipId, tell](Player* bot)
+    {
+        WorldPacket payload(CMSG_GOSSIP_SELECT_OPTION, 16);
+        WorldPackets::NPC::GossipSelectOption select(std::move(payload));
+        select.GossipUnit = gossipUnit;
+        select.GossipOptionID = optionId;
+        select.GossipID = gossipId;
+        bot->GetSession()->HandleGossipSelectOptionOpcode(select);
 
-    if (!silent)
-        TellGossipMenus();
+        if (tell && sPlayerbotsMgr.GetPlayerbotAI(bot))
+        {
+            // Same job TellGossipMenus does, on the AI resolved at execution time.
+            GossipMenu& newMenu = bot->PlayerTalkClass->GetGossipMenu();
+            for (GossipMenuItem const& item : newMenu.GetMenuItems())
+            {
+                std::ostringstream out;
+                out << "[" << item.OrderIndex << "] " << item.OptionText;
+                sPlayerbotsMgr.GetPlayerbotAI(bot)->TellMasterNoFacing(out.str());
+            }
+        }
+    });
 
     return true;
 }

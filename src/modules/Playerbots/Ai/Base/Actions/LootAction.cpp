@@ -38,12 +38,15 @@ bool LootAction::Execute(Event /*event*/)
     LootObject prevLoot = AI_VALUE(LootObject, "loot target");
     if (!prevLoot.IsEmpty() && prevLoot.guid != lootObject.guid)
     {
-        // 12.x handlers take structured packets; the bot runs on the world
-        // thread, so the AC "queue a forged CMSG" dance is not needed.
-        WorldPacket payload(CMSG_LOOT_RELEASE, 16);
-        WorldPackets::Loot::LootRelease release(std::move(payload));
-        release.Unit = prevLoot.guid;
-        bot->GetSession()->HandleLootReleaseOpcode(release);
+        // 12.x handlers take structured packets. Loot release mutates the loot view shared with
+        // other players, so it runs in the world tick window like every other loot handler.
+        ObjectGuid const releaseGuid = prevLoot.guid;
+        botAI->RunOnWorldThread("loot release", [releaseGuid](Player* bot) {
+            WorldPacket payload(CMSG_LOOT_RELEASE, 16);
+            WorldPackets::Loot::LootRelease release(std::move(payload));
+            release.Unit = releaseGuid;
+            bot->GetSession()->HandleLootReleaseOpcode(release);
+        });
     }
 
     context->GetValue<LootObject>("loot target")->Set(lootObject);
@@ -114,10 +117,10 @@ bool OpenLootAction::Execute(Event /*event*/)
         availableLoot->BeginLoot(lootObject.guid);
     else if (!lootObject.IsEmpty() && !lootObject.IsLootPossible(bot))
     {
-        // This corpse can never be looted by this bot any more: a roll went to someone else and the
-        // item stays on the corpse for the winner (LootRoll::Finish keeps it unlooted), so the corpse
-        // still looks lootable to everyone. Deferring it is what made the bot bow at such a corpse
-        // forever - drop it and move on.
+        // This corpse can never be looted by this bot any more: a roll went to someone else (an
+        // online winner is handed the item directly by LootRoll::Finish; an offline winner or a
+        // full bag leaves it on the corpse), so it still looks lootable to everyone. Deferring it
+        // is what made the bot bow at such a corpse forever - drop it and move on.
         availableLoot->Remove(lootObject.guid);
         if (AI_VALUE(LootObject, "loot target").guid == lootObject.guid)
             context->GetValue<LootObject>("loot target")->Set(LootObject());
@@ -157,15 +160,18 @@ bool OpenLootAction::DoLoot(LootObject& lootObject)
 
     if (creature && creature->HasDynamicFlag(UNIT_DYNFLAG_LOOTABLE))
     {
-        WorldPacket payload(CMSG_LOOT_UNIT, 16);
-        WorldPackets::Loot::LootUnit lootUnit(std::move(payload));
-        lootUnit.Unit = lootObject.guid;
-        bot->GetSession()->HandleLootOpcode(lootUnit);
-        // Area loot opens one window per looted corpse in range, so the count is the evidence when a
-        // bot keeps the looting pose: the pose is UNIT_FLAG_LOOTING, cleared only when the last window closes.
-        TC_LOG_DEBUG("playerbots.loot", "{} opened loot: owner {}, {} window(s) open, looting flag {}",
-            bot->GetName(), lootObject.guid.ToString(), bot->GetAELootView().size(),
-            bot->HasUnitFlag(UNIT_FLAG_LOOTING) ? "set" : "clear");
+        ObjectGuid const lootGuid = lootObject.guid;
+        botAI->RunOnWorldThread("loot open", [lootGuid](Player* bot) {
+            WorldPacket payload(CMSG_LOOT_UNIT, 16);
+            WorldPackets::Loot::LootUnit lootUnit(std::move(payload));
+            lootUnit.Unit = lootGuid;
+            bot->GetSession()->HandleLootOpcode(lootUnit);
+            // Area loot opens one window per looted corpse in range, so the count is the evidence when a
+            // bot keeps the looting pose: the pose is UNIT_FLAG_LOOTING, cleared only when the last window closes.
+            TC_LOG_DEBUG("playerbots.loot", "{} opened loot: owner {}, {} window(s) open, looting flag {}",
+                bot->GetName(), lootGuid.ToString(), bot->GetAELootView().size(),
+                bot->HasUnitFlag(UNIT_FLAG_LOOTING) ? "set" : "clear");
+        });
         botAI->SetNextCheckDelay(sPlayerbotAIConfig.LootDelay);
         return true;
     }
@@ -496,10 +502,12 @@ bool StoreLootAction::Execute(Event event)
         // A window a previous attempt opened stays open otherwise and pins the looting pose.
         if (!currentLoot.IsEmpty() && currentLoot == guid)
         {
-            WorldPacket releasePayload(CMSG_LOOT_RELEASE, 16);
-            WorldPackets::Loot::LootRelease release(std::move(releasePayload));
-            release.Unit = guid;
-            bot->GetSession()->HandleLootReleaseOpcode(release);
+            botAI->RunOnWorldThread("loot release", [releaseGuid = guid](Player* bot) {
+                WorldPacket releasePayload(CMSG_LOOT_RELEASE, 16);
+                WorldPackets::Loot::LootRelease release(std::move(releasePayload));
+                release.Unit = releaseGuid;
+                bot->GetSession()->HandleLootReleaseOpcode(release);
+            });
         }
 
         return false;
@@ -528,10 +536,11 @@ bool StoreLootAction::Execute(Event event)
     // gold they were opened with, but their loot has none left.
     if (gold > 0 && loot->gold > 0)
     {
-        WorldPacket payload(CMSG_LOOT_MONEY, 0);
-        WorldPackets::Loot::LootMoney lootMoney(std::move(payload));
-        bot->GetSession()->HandleLootMoneyOpcode(lootMoney);
-        // bot->GetSession()->HandleLootMoneyOpcode(packet);
+        botAI->RunOnWorldThread("loot money", [](Player* bot) {
+            WorldPacket payload(CMSG_LOOT_MONEY, 0);
+            WorldPackets::Loot::LootMoney lootMoney(std::move(payload));
+            bot->GetSession()->HandleLootMoneyOpcode(lootMoney);
+        });
     }
 
     for (ParsedLootItem const& parsed : parsedItems)
@@ -601,15 +610,19 @@ bool StoreLootAction::Execute(Event event)
                         GuildTaskMgr::instance().CheckItemTask(itemid, itemcount, ref.GetSource(), bot);
         }
 
-        WorldPacket payload(CMSG_LOOT_ITEM);
-        WorldPackets::Loot::LootItem lootItem(std::move(payload));
-        lootItem.Loot.resize(1);
         // HandleAutostoreLootItemOpcode looks the loot up in Player::GetAELootView(), which is keyed
         // by the loot window guid (loot.GetGUID()), not by the corpse: this one request field needs
         // LootObj while every release/state check above needs Owner (2026-11-25).
-        lootItem.Loot[0].Object = lootObjGuid;
-        lootItem.Loot[0].LootListID = uint8(itemindex);
-        bot->GetSession()->HandleAutostoreLootItemOpcode(lootItem);
+        ObjectGuid const windowGuid = lootObjGuid;
+        uint8 const lootListId = uint8(itemindex);
+        botAI->RunOnWorldThread("loot item", [windowGuid, lootListId](Player* bot) {
+            WorldPacket payload(CMSG_LOOT_ITEM);
+            WorldPackets::Loot::LootItem lootItem(std::move(payload));
+            lootItem.Loot.resize(1);
+            lootItem.Loot[0].Object = windowGuid;
+            lootItem.Loot[0].LootListID = lootListId;
+            bot->GetSession()->HandleAutostoreLootItemOpcode(lootItem);
+        });
         botAI->SetNextCheckDelay(sPlayerbotAIConfig.LootDelay);
         ++autostored;
 
@@ -634,13 +647,15 @@ bool StoreLootAction::Execute(Event event)
         context->GetValue<LootObject>("loot target")->Set(LootObject());
 
     // release loot
-    WorldPacket payload(CMSG_LOOT_RELEASE, 16);
-    WorldPackets::Loot::LootRelease release(std::move(payload));
-    release.Unit = guid;
-    bot->GetSession()->HandleLootReleaseOpcode(release);
-    TC_LOG_DEBUG("playerbots.loot", "{} closed loot: window {} (owner {}), {} window(s) left, looting flag {}",
-        bot->GetName(), lootObjGuid.ToString(), guid.ToString(), bot->GetAELootView().size(),
-        bot->HasUnitFlag(UNIT_FLAG_LOOTING) ? "set" : "clear");
+    botAI->RunOnWorldThread("loot release", [releaseGuid = guid, windowGuid = lootObjGuid](Player* bot) {
+        WorldPacket payload(CMSG_LOOT_RELEASE, 16);
+        WorldPackets::Loot::LootRelease release(std::move(payload));
+        release.Unit = releaseGuid;
+        bot->GetSession()->HandleLootReleaseOpcode(release);
+        TC_LOG_DEBUG("playerbots.loot", "{} closed loot: window {} (owner {}), {} window(s) left, looting flag {}",
+            bot->GetName(), windowGuid.ToString(), releaseGuid.ToString(), bot->GetAELootView().size(),
+            bot->HasUnitFlag(UNIT_FLAG_LOOTING) ? "set" : "clear");
+    });
     return true;
 }
 
@@ -707,9 +722,11 @@ bool ReleaseLootAction::Execute(Event /*event*/)
     if (guid.IsEmpty())
         return false;
 
-    WorldPacket payload(CMSG_LOOT_RELEASE, 16);
-    WorldPackets::Loot::LootRelease release(std::move(payload));
-    release.Unit = guid;
-    bot->GetSession()->HandleLootReleaseOpcode(release);
+    botAI->RunOnWorldThread("loot release", [releaseGuid = guid](Player* bot) {
+        WorldPacket payload(CMSG_LOOT_RELEASE, 16);
+        WorldPackets::Loot::LootRelease release(std::move(payload));
+        release.Unit = releaseGuid;
+        bot->GetSession()->HandleLootReleaseOpcode(release);
+    });
     return true;
 }

@@ -92,8 +92,6 @@ public:
     std::string const HandleRemoteCommand(std::string const request);
     void OnPlayerLogout(Player* player);
     void OnPlayerLogin(Player* player);
-    void OnPlayerLoginError(uint32 bot);
-    Player* GetRandomPlayer();
     std::vector<Player*> GetPlayers() { return players; };
     PlayerBotMap GetAllBots() { return playerBots; };
     void PrintStats();
@@ -114,10 +112,8 @@ public:
     bool ProcessBot(Player* player);
     void Revive(Player* player);
     void ChangeStrategy(Player* player);
-    void ChangeStrategyOnce(Player* player);
     uint32 GetValue(Player* bot, std::string const& type);
     uint32 GetValue(uint32 bot, std::string const& type);
-    std::string GetData(uint32 bot, std::string const& type);
     void SetValue(uint32 bot, std::string const& type, uint32 value, std::string const& data = "");
     void SetValue(Player* bot, std::string const& type, uint32 value, std::string const& data = "");
     bool IsSpecPvp(uint32 bot, uint8 cls);

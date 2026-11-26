@@ -237,6 +237,18 @@ TalentsApplyResult ApplyClassicTalents(Player* bot, bool force /*= false*/)
     auto const build = ::Playerbot::Classic::GetTalentBuild(bot->GetClass(), spec);
     if (build.empty()) return TalentsApplyResult::NotKnown;
 
+    uint32 const held = CountActiveTraitRanks(bot);
+    int32 const points = std::max<int32>(0, int32(bot->GetLevel()) - 9);
+    // The Legacy perk Talented (Classic 1.60) moves the first talent level down to 5..9 and pays
+    // for those early points (TraitMgr::FillOwnedCurrenciesMap); extraTalented is the most it adds.
+    int32 extraTalented = 0;
+    if (int32 const startLevel = TraitMgr::PlayerDataAccessor(bot).GetClassicTalentedStartLevel(); startLevel > 0 && startLevel < 10)
+        extraTalented = 10 - startLevel;
+    // Nothing to place and nothing to clear: a bot that holds nothing and whose level pays for
+    // nothing (not even through Talented) is already where it should be.
+    if (held == 0 && points + extraTalented == 0)
+        return TalentsApplyResult::NotKnown;
+
     // The walk below validates the whole trait config once per rank and per refused pick (TraitMgr::FillOwnedCurrenciesMap and
     // MeetsTraitCondition each time), which is seconds of world thread for one bot. Companions ask for it on every upkeep and a group of
     // them logs in together (169 freeze: 60 s), so a bot whose level, specialization and purchased ranks are what its last walk left
@@ -250,7 +262,7 @@ TalentsApplyResult ApplyClassicTalents(Player* bot, bool force /*= false*/)
         std::lock_guard<std::mutex> lock(s_walkLock);
         auto const walked = s_walked.find(walkKey);
         if (walked != s_walked.end() && walked->second.level == uint8(bot->GetLevel()) && walked->second.spec == spec
-            && walked->second.ranks == CountActiveTraitRanks(bot))
+            && walked->second.ranks == held)
             return TalentsApplyResult::Ok;
     }
     // Playerbots.ClassicTalents.ApplyOnLogin = 0 (default): a bot that already holds all the points of its level on the build its talents
@@ -258,12 +270,12 @@ TalentsApplyResult ApplyClassicTalents(Player* bot, bool force /*= false*/)
     static bool const applyOnLogin = sConfigMgr->GetBoolDefault("Playerbots.ClassicTalents.ApplyOnLogin", false, true);
     if (!applyOnLogin)
     {
-        uint32 const held = CountActiveTraitRanks(bot);
-        int32 const points = std::max<int32>(0, int32(bot->GetLevel()) - 9);
         // The bot must hold the build as it is defined now: every pick, in the build's order, up to the points of its level, at the ranks the
         // build lists. A build definition that changed (talent names corrected to Forever's nodes) or a spec pinned by a scenario fails this
         // and the bot is walked once; a pick the class trees have no node for cannot be held and does not count against the bot.
-        bool holdsBuild = held > 0 && int32(held) >= points;
+        // A level that went down leaves more ranks held than the new level pays for, and ">=" alone read that as "holds the build" and left
+        // the old spend in place: the upper bound is the points the level pays for plus what Talented adds below level 10.
+        bool holdsBuild = held > 0 && int32(held) >= points && int32(held) <= points + extraTalented;
         // A bot walked before the row rule (TalentRowsOpen) may hold talents in rows its tab has not opened: walked once more.
         if (holdsBuild && !TalentRowsOpen(bot, active->Entries))
             holdsBuild = false;
@@ -299,12 +311,17 @@ TalentsApplyResult ApplyClassicTalents(Player* bot, bool force /*= false*/)
             return TalentsApplyResult::Ok;
         }
     }
-    // At most one walk per world update, whatever the duty cycle says.
+    // At most one walk per world update, whatever the duty cycle says. force skips both: the
+    // factory and a level change want the ranks placed now. Each walk still keeps its own
+    // budget (Playerbots.ClassicTalents.WalkBudgetMs), so a batch costs a bounded slice each.
     static std::atomic<uint32> s_lastWalkLoop{ 0 };
-    uint32 const loopNow = World::m_worldLoopCounter.load();
-    if (loopNow == s_lastWalkLoop.load() || int32(getMSTime() - s_nextWalkMs.load()) < 0)
-        return TalentsApplyResult::Locked;
-    s_lastWalkLoop.store(loopNow);
+    if (!force)
+    {
+        uint32 const loopNow = World::m_worldLoopCounter.load();
+        if (loopNow == s_lastWalkLoop.load() || int32(getMSTime() - s_nextWalkMs.load()) < 0)
+            return TalentsApplyResult::Locked;
+        s_lastWalkLoop.store(loopNow);
+    }
     uint32 const walkStartMs = getMSTime();
 
     // Start from the free (granted) ranks only and buy the build rank by

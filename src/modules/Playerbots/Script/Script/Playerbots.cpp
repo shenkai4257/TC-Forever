@@ -23,6 +23,7 @@
 #include "PlayerbotCommandScript.h"
 #include "PlayerbotGuildMgr.h"
 #include "PlayerbotSpellRepository.h"
+#include "PlayerbotRepository.h"
 #include "PlayerbotWorldThreadProcessor.h"
 #include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
@@ -339,6 +340,13 @@ public:
     {
         if (!playerbotsWorldInitialized)
             return;
+
+        // Persist per-bot settings (playerbots_db_store) synchronously before the logouts: the
+        // cleanup operations queued by LogoutPlayerBot would never run now that the world loop
+        // has returned, so the queue cannot carry this data out.
+        for (auto& [guid, bot] : sRandomPlayerbotMgr.GetAllBots())
+            if (PlayerbotAI* botAI = PlayerbotsMgr::instance().GetPlayerbotAI(bot))
+                PlayerbotRepository::instance().Save(botAI);
 
         TC_LOG_INFO("playerbots", "Logging out all bots...");
         sRandomPlayerbotMgr.LogoutAllBots();

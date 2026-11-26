@@ -502,7 +502,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
         // never needs a cross-database subquery (the login database may live on
         // a different server than the character database)
         std::vector<uint32> botAccounts;
-        QueryResult accountResult = LoginDatabase.PQuery("SELECT id FROM account WHERE username LIKE '{}%%' ORDER BY id",
+        QueryResult accountResult = LoginDatabase.PQuery("SELECT id FROM account WHERE username LIKE '{}%' ORDER BY id",
             sPlayerbotAIConfig.RandomBotAccountPrefix.c_str());
         if (accountResult)
         {
@@ -536,7 +536,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
         // account list alone leaves the characters of earlier pools behind once their account has
         // been deleted: a reused bot account id then makes them belong to a new account again, and
         // the pool is "recreated" with the old skills, spells and riding still on it.
-        QueryResult playerAccountResult = LoginDatabase.PQuery("SELECT id FROM account WHERE username NOT LIKE '{}%%'",
+        QueryResult playerAccountResult = LoginDatabase.PQuery("SELECT id FROM account WHERE username NOT LIKE '{}%'",
             sPlayerbotAIConfig.RandomBotAccountPrefix.c_str());
         std::string playerAccountIds;
         if (playerAccountResult)
@@ -615,7 +615,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
 
         // Finally, delete the bot accounts themselves
         TC_LOG_INFO("playerbots", "Deleting random bot accounts...");
-        QueryResult results = LoginDatabase.PQuery("SELECT id FROM account WHERE username LIKE '{}%%'",
+        QueryResult results = LoginDatabase.PQuery("SELECT id FROM account WHERE username LIKE '{}%'",
                                              sPlayerbotAIConfig.RandomBotAccountPrefix.c_str());
         int32 deletion_count = 0;
         if (results)

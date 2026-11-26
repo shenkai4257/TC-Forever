@@ -32,11 +32,15 @@ bool ShareQuestAction::Execute(Event event)
         uint32 logQuest = bot->GetQuestSlotQuestId(slot);
         if (logQuest == entry)
         {
-            WorldPacket p(CMSG_PUSH_QUEST_TO_PARTY);
-            p << entry;
-            WorldPackets::Quest::PushQuestToParty pushQuest(std::move(p));
-            pushQuest.Read();
-            bot->GetSession()->HandlePushQuestToParty(pushQuest);
+            // The push writes quest state on every group member (possibly on other maps), so it
+            // must run in the world tick window.
+            botAI->RunOnWorldThread("quest push", [entry](Player* bot) {
+                WorldPacket p(CMSG_PUSH_QUEST_TO_PARTY);
+                p << entry;
+                WorldPackets::Quest::PushQuestToParty pushQuest(std::move(p));
+                pushQuest.Read();
+                bot->GetSession()->HandlePushQuestToParty(pushQuest);
+            });
             botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "quest_shared", "Quest shared", {}));
             return true;
@@ -101,11 +105,14 @@ bool AutoShareQuestAction::Execute(Event /*event*/)
         if (!partyNeedsQuest)
             continue;
 
-        WorldPacket p(CMSG_PUSH_QUEST_TO_PARTY);
-        p << logQuest;
-        WorldPackets::Quest::PushQuestToParty pushQuest(std::move(p));
-        pushQuest.Read();
-        bot->GetSession()->HandlePushQuestToParty(pushQuest);
+        uint32 const questEntry = logQuest;
+        botAI->RunOnWorldThread("quest push", [questEntry](Player* bot) {
+            WorldPacket p(CMSG_PUSH_QUEST_TO_PARTY);
+            p << questEntry;
+            WorldPackets::Quest::PushQuestToParty pushQuest(std::move(p));
+            pushQuest.Read();
+            bot->GetSession()->HandlePushQuestToParty(pushQuest);
+        });
         botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault(
             "quest_shared", "Quest shared", {}));
         shared = true;

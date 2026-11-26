@@ -14,9 +14,11 @@
 
 bool CheckMailAction::Execute(Event /*event*/)
 {
-    WorldPacket payload(CMSG_QUERY_NEXT_MAIL_TIME, 0);
-    WorldPackets::Mail::MailQueryNextMailTime query(std::move(payload));
-    bot->GetSession()->HandleQueryNextMailTime(query);
+    botAI->RunOnWorldThread("mail query", [](Player* bot) {
+        WorldPacket payload(CMSG_QUERY_NEXT_MAIL_TIME, 0);
+        WorldPackets::Mail::MailQueryNextMailTime query(std::move(payload));
+        bot->GetSession()->HandleQueryNextMailTime(query);
+    });
 
     CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
 

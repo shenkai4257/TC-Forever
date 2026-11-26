@@ -97,12 +97,17 @@ public:
             out << mail->subject << ", |cffffff00" << ChatHelper::formatMoney(mail->money) << "|cff00ff00 processed";
             botAI->TellMaster(out.str());
 
-            WorldPacket raw(CMSG_MAIL_TAKE_MONEY);
-            WorldPackets::Mail::MailTakeMoney packet(std::move(raw));
-            packet.Mailbox = mailbox;
-            packet.MailID = mail->messageID;
-            packet.Money = mail->money;
-            bot->GetSession()->HandleMailTakeMoney(packet);
+            ObjectGuid const box = mailbox;
+            uint32 const mailId = mail->messageID;
+            uint32 const money = mail->money;
+            botAI->RunOnWorldThread("mail take money", [box, mailId, money](Player* bot) {
+                WorldPacket raw(CMSG_MAIL_TAKE_MONEY);
+                WorldPackets::Mail::MailTakeMoney packet(std::move(raw));
+                packet.Mailbox = box;
+                packet.MailID = mailId;
+                packet.Money = money;
+                bot->GetSession()->HandleMailTakeMoney(packet);
+            });
             RemoveMail(bot, mail->messageID, mailbox);
         }
         else if (!mail->items.empty())
@@ -114,18 +119,25 @@ public:
 
             for (std::vector<uint32>::iterator i = guids.begin(); i != guids.end(); ++i)
             {
-                WorldPacket raw(CMSG_MAIL_TAKE_ITEM);
-                WorldPackets::Mail::MailTakeItem packet(std::move(raw));
-                packet.Mailbox = mailbox;
-                packet.MailID = mail->messageID;
-                packet.AttachID = *i;
+                ObjectGuid const box = mailbox;
+                uint32 const mailId = mail->messageID;
+                uint32 const attachId = *i;
 
                 Item* item = bot->GetMItem(*i);
+                if (!item)  // attachment gone while the mail listing was built
+                    continue;
 
                 std::ostringstream out;
                 out << mail->subject << ", " << ChatHelper::FormatItem(item->GetTemplate()) << "|cff00ff00 processed";
 
-                bot->GetSession()->HandleMailTakeItem(packet);
+                botAI->RunOnWorldThread("mail take item", [box, mailId, attachId](Player* bot) {
+                    WorldPacket raw(CMSG_MAIL_TAKE_ITEM);
+                    WorldPackets::Mail::MailTakeItem packet(std::move(raw));
+                    packet.Mailbox = box;
+                    packet.MailID = mailId;
+                    packet.AttachID = attachId;
+                    bot->GetSession()->HandleMailTakeItem(packet);
+                });
                 botAI->TellMaster(out.str());
             }
 
@@ -324,11 +336,16 @@ bool MailAction::Execute(Event event)
 
 void MailProcessor::RemoveMail(Player* bot, uint32 id, ObjectGuid mailbox)
 {
-    WorldPacket raw(CMSG_MAIL_DELETE);
-    WorldPackets::Mail::MailDelete packet(std::move(raw));
-    packet.MailID = id;
-    packet.DeleteReason = 0;  // mailTemplateId in 3.3.5, unused by the 12.x handler
-    bot->GetSession()->HandleMailDelete(packet);
+    if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot))
+    {
+        botAI->RunOnWorldThread("mail delete", [mailbox, id](Player* bot) {
+            WorldPacket raw(CMSG_MAIL_DELETE);
+            WorldPackets::Mail::MailDelete packet(std::move(raw));
+            packet.MailID = id;
+            packet.DeleteReason = 0;  // mailTemplateId in 3.3.5, unused by the 12.x handler
+            bot->GetSession()->HandleMailDelete(packet);
+        });
+    }
 }
 
 ObjectGuid MailProcessor::FindMailbox(PlayerbotAI* botAI)

@@ -103,14 +103,6 @@ public:
 
 
 
-class ElementalMasteryTrigger : public BuffTrigger
-{
-public:
-    ElementalMasteryTrigger(PlayerbotAI* botAI) : BuffTrigger(botAI, "elemental mastery") {}
-
-    bool IsActive() override;
-};
-
 class SpiritWalkTrigger : public Trigger
 {
 public:

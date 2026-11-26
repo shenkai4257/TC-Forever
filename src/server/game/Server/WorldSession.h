@@ -49,13 +49,6 @@ class Player;
 class Unit;
 class WorldPacket;
 class WorldSession;
-
-namespace Playerbot {
-    class BotSession;
-    namespace V2 {
-        class BotSession;
-    }
-}
 class WorldSocket;
 struct AuctionPosting;
 struct BlackMarketTemplate;
@@ -2053,8 +2046,6 @@ class TC_GAME_API WorldSession
         AsyncCallbackProcessor<SQLQueryHolderCallback> _queryHolderProcessor;
 
     friend class World;
-    friend class Playerbot::BotSession;
-    friend class Playerbot::V2::BotSession;
     protected:
         class DosProtection
         {

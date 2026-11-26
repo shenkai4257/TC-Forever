@@ -10,9 +10,12 @@
 
 bool ResetInstancesAction::Execute(Event /*event*/)
 {
-    WorldPacket packet(CMSG_RESET_INSTANCES, 0);
-    WorldPackets::Instance::ResetInstances resetInstance(std::move(packet));
-    bot->GetSession()->HandleResetInstancesOpcode(resetInstance);
+    // Instance reset touches the global InstanceSaveMgr and unbinds group members on other maps.
+    botAI->RunOnWorldThread("reset instances", [](Player* bot) {
+        WorldPacket packet(CMSG_RESET_INSTANCES, 0);
+        WorldPackets::Instance::ResetInstances resetInstance(std::move(packet));
+        bot->GetSession()->HandleResetInstancesOpcode(resetInstance);
+    });
 
     return true;
 }

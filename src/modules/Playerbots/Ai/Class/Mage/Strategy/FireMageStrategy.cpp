@@ -38,24 +38,8 @@ void FireMageStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
             }
         )
     );
-    triggers.push_back(
-        new TriggerNode(
-            "living bomb",
-            {
-                NextAction("living bomb", 18.5f)
-            }
-        )
-    );
 
     // Proc Trigger
-    triggers.push_back(
-        new TriggerNode(
-            "hot streak",
-            {
-                NextAction("pyroblast", 25.0f)
-            }
-        )
-    );
 
     triggers.push_back(
         new TriggerNode(

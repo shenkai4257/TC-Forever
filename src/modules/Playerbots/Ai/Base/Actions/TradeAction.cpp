@@ -41,10 +41,13 @@ bool TradeAction::Execute(Event event)
 
         if (!player->GetTrader())
         {
-            WorldPacket raw(CMSG_INITIATE_TRADE);
-            WorldPackets::Trade::InitiateTrade packet(std::move(raw));
-            packet.Guid = player->GetGUID();
-            bot->GetSession()->HandleInitiateTradeOpcode(packet);
+            ObjectGuid const partner = player->GetGUID();
+            botAI->RunOnWorldThread("trade initiate", [partner](Player* bot) {
+                WorldPacket raw(CMSG_INITIATE_TRADE);
+                WorldPackets::Trade::InitiateTrade packet(std::move(raw));
+                packet.Guid = partner;
+                bot->GetSession()->HandleInitiateTradeOpcode(packet);
+            });
             return true;
         }
         else if (player->GetTrader() != bot)
@@ -54,10 +57,12 @@ bool TradeAction::Execute(Event event)
     uint32 copper = chat->parseMoney(text);
     if (copper > 0)
     {
-        WorldPacket raw(CMSG_SET_TRADE_GOLD);
-        WorldPackets::Trade::SetTradeGold packet(std::move(raw));
-        packet.Coinage = copper;
-        bot->GetSession()->HandleSetTradeGoldOpcode(packet);
+        botAI->RunOnWorldThread("trade set gold", [copper](Player* bot) {
+            WorldPacket raw(CMSG_SET_TRADE_GOLD);
+            WorldPackets::Trade::SetTradeGold packet(std::move(raw));
+            packet.Coinage = copper;
+            bot->GetSession()->HandleSetTradeGoldOpcode(packet);
+        });
     }
 
     size_t pos = text.rfind(" ");
@@ -73,7 +78,11 @@ bool TradeAction::Execute(Event event)
         if (!bot->GetTrader() || item->IsInTrade())
             continue;
 
-        int8 slot = item->CanBeTraded() ? -1 : TRADE_SLOT_NONTRADED;
+        // The enchant slot is only for soulbound items; everything else (BoE included) goes to a
+        // tradeable slot. CanBeTraded()'s auxiliary checks (loot GUID residue, unequip validation)
+        // misfire for bots and would push unbound items into the enchant slot, making them
+        // untradeable for the partner.
+        int8 slot = item->IsSoulBound() ? TRADE_SLOT_NONTRADED : -1;
         if (TradeItem(item, slot) && slot != TRADE_SLOT_NONTRADED && ++traded >= uint32(count))
             break;
     }
@@ -100,10 +109,12 @@ bool TradeAction::TradeItem(Item const* item, int8 slot)
             {
                 tradeSlot = i;
 
-                WorldPacket raw(CMSG_CLEAR_TRADE_ITEM);
-                WorldPackets::Trade::ClearTradeItem packet(std::move(raw));
-                packet.TradeSlot = uint8(tradeSlot);
-                bot->GetSession()->HandleClearTradeItemOpcode(packet);
+                botAI->RunOnWorldThread("trade clear item", [tradeSlot](Player* bot) {
+                    WorldPacket raw(CMSG_CLEAR_TRADE_ITEM);
+                    WorldPackets::Trade::ClearTradeItem packet(std::move(raw));
+                    packet.TradeSlot = uint8(tradeSlot);
+                    bot->GetSession()->HandleClearTradeItemOpcode(packet);
+                });
                 pTrade->SetItem(TradeSlots(i), nullptr);
                 return true;
             }
@@ -119,11 +130,16 @@ bool TradeAction::TradeItem(Item const* item, int8 slot)
     if (tradeSlot == -1)
         return false;
 
-    WorldPacket raw(CMSG_SET_TRADE_ITEM);
-    WorldPackets::Trade::SetTradeItem packet(std::move(raw));
-    packet.TradeSlot = uint8(tradeSlot);
-    packet.PackSlot = item->GetBagSlot();
-    packet.ItemSlotInPack = item->GetSlot();
-    bot->GetSession()->HandleSetTradeItemOpcode(packet);
+    int8 const targetSlot = tradeSlot;
+    uint8 const packSlot = item->GetBagSlot();
+    uint8 const slotInPack = item->GetSlot();
+    botAI->RunOnWorldThread("trade set item", [targetSlot, packSlot, slotInPack](Player* bot) {
+        WorldPacket raw(CMSG_SET_TRADE_ITEM);
+        WorldPackets::Trade::SetTradeItem packet(std::move(raw));
+        packet.TradeSlot = uint8(targetSlot);
+        packet.PackSlot = packSlot;
+        packet.ItemSlotInPack = slotInPack;
+        bot->GetSession()->HandleSetTradeItemOpcode(packet);
+    });
     return true;
 }

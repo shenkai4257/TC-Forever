@@ -117,7 +117,6 @@ public:
         creators["move random"] = &StrategyContext::move_random;
         creators["formation"] = &StrategyContext::combat_formation;
         creators["move from group"] = &StrategyContext::move_from_group;
-        creators["worldbuff"] = &StrategyContext::world_buff;
         creators["use bobber"] = &StrategyContext::bobber_strategy;
         creators["master fishing"] = &StrategyContext::master_fishing;
         creators["wait for attack"] = &StrategyContext::wait_for_attack;
@@ -183,7 +182,6 @@ private:
     static Strategy* move_random(PlayerbotAI* botAI) { return new MoveRandomStrategy(botAI); }
     static Strategy* combat_formation(PlayerbotAI* botAI) { return new CombatFormationStrategy(botAI); }
     static Strategy* move_from_group(PlayerbotAI* botAI) { return new MoveFromGroupStrategy(botAI); }
-    static Strategy* world_buff(PlayerbotAI* botAI) { return new WorldBuffStrategy(botAI); }
     static Strategy* bobber_strategy(PlayerbotAI* botAI) { return new UseBobberStrategy(botAI); }
     static Strategy* master_fishing(PlayerbotAI* botAI) { return new MasterFishingStrategy(botAI); }
     static Strategy* wait_for_attack(PlayerbotAI* botAI) { return new WaitForAttackStrategy(botAI); }

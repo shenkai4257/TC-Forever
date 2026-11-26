@@ -145,7 +145,6 @@ public:
         creators["water walking on party"] = &ShamanATriggerFactoryInternal::water_walking_on_party;
         creators["shock"] = &ShamanATriggerFactoryInternal::shock;
         creators["frost shock snare"] = &ShamanATriggerFactoryInternal::frost_shock_snare;
-        creators["elemental mastery"] = &ShamanATriggerFactoryInternal::elemental_mastery;
         creators["earth shield on main tank"] = &ShamanATriggerFactoryInternal::earth_shield_on_main_tank;
         creators["maelstrom weapon 3"] = &ShamanATriggerFactoryInternal::maelstrom_weapon_3;
         creators["maelstrom weapon 4"] = &ShamanATriggerFactoryInternal::maelstrom_weapon_4;
@@ -185,7 +184,6 @@ private:
     static Trigger* maelstrom_weapon_3(PlayerbotAI* botAI) { return new MaelstromWeaponTrigger(botAI, 3); }
     static Trigger* maelstrom_weapon_4(PlayerbotAI* botAI) { return new MaelstromWeaponTrigger(botAI, 4); }
     static Trigger* maelstrom_weapon_5(PlayerbotAI* botAI) { return new MaelstromWeaponTrigger(botAI, 5); }
-    static Trigger* elemental_mastery(PlayerbotAI* botAI) { return new ElementalMasteryTrigger(botAI); }
     static Trigger* water_breathing(PlayerbotAI* botAI) { return new WaterBreathingTrigger(botAI); }
     static Trigger* water_walking(PlayerbotAI* botAI) { return new WaterWalkingTrigger(botAI); }
     static Trigger* water_breathing_on_party(PlayerbotAI* botAI) { return new WaterBreathingOnPartyTrigger(botAI); }
@@ -264,7 +262,6 @@ public:
         creators["frost shock"] = &ShamanAiObjectContextInternal::frost_shock;
         creators["chain lightning"] = &ShamanAiObjectContextInternal::chain_lightning;
         creators["lightning bolt"] = &ShamanAiObjectContextInternal::lightning_bolt;
-        creators["elemental mastery"] = &ShamanAiObjectContextInternal::elemental_mastery;
         creators["lava burst"] = &ShamanAiObjectContextInternal::lava_burst;
         creators["earth shield on main tank"] = &ShamanAiObjectContextInternal::earth_shield_on_main_tank;
         creators["spirit walk"] = &ShamanAiObjectContextInternal::spirit_walk;
@@ -306,7 +303,6 @@ public:
     }
 
 private:
-    static Action* elemental_mastery(PlayerbotAI* botAI) { return new CastElementalMasteryAction(botAI); }
     static Action* lightning_bolt(PlayerbotAI* botAI) { return new CastLightningBoltAction(botAI); }
     static Action* chain_lightning(PlayerbotAI* botAI) { return new CastChainLightningAction(botAI); }
     static Action* frost_shock(PlayerbotAI* botAI) { return new CastFrostShockAction(botAI); }

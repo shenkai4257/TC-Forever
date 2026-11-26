@@ -73,22 +73,6 @@ void FrostMageStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     // Proc/Freeze triggers
     triggers.push_back(
         new TriggerNode(
-            "brain freeze",
-            {
-                NextAction("frostfire bolt", 19.5f)
-            }
-        )
-    );
-    triggers.push_back(
-        new TriggerNode(
-            "fingers of frost",
-            {
-                NextAction("frostbolt", 18.0f)
-            }
-        )
-    );
-    triggers.push_back(
-        new TriggerNode(
             "frostbite on target",
             {
                 NextAction("frostbolt", 18.0f)

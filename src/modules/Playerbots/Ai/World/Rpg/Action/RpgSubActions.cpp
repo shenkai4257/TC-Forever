@@ -443,10 +443,13 @@ bool RpgTradeUsefulAction::Execute(Event /*event*/)
             {
                 // bot->Say("End trade with" + chat->FormatWorldobject(player), (bot->GetTeamId() == TEAM_ALLIANCE ?
                 // LANG_COMMON : LANG_ORCISH));
-                WorldPacket raw(CMSG_ACCEPT_TRADE);
-                WorldPackets::Trade::AcceptTrade accept(std::move(raw));
-                accept.StateIndex = bot->GetTradeData() ? bot->GetTradeData()->GetClientStateIndex() : 0;
-                bot->GetSession()->HandleAcceptTradeOpcode(accept);
+                uint32 const stateIndex = bot->GetTradeData() ? bot->GetTradeData()->GetClientStateIndex() : 0;
+                botAI->RunOnWorldThread("trade accept", [stateIndex](Player* bot) {
+                    WorldPacket raw(CMSG_ACCEPT_TRADE);
+                    WorldPackets::Trade::AcceptTrade accept(std::move(raw));
+                    accept.StateIndex = stateIndex;
+                    bot->GetSession()->HandleAcceptTradeOpcode(accept);
+                });
             }
         }
         else
@@ -500,9 +503,11 @@ bool RpgMountAnimAction::isUseful()
 
 bool RpgMountAnimAction::Execute(Event /*event*/)
 {
-    WorldPacket raw(CMSG_MOUNT_SPECIAL_ANIM);
-    WorldPackets::Misc::MountSpecial mountSpecial(std::move(raw));
-    bot->GetSession()->HandleMountSpecialAnimOpcode(mountSpecial);
+    botAI->RunOnWorldThread("mount special", [](Player* bot) {
+        WorldPacket raw(CMSG_MOUNT_SPECIAL_ANIM);
+        WorldPackets::Misc::MountSpecial mountSpecial(std::move(raw));
+        bot->GetSession()->HandleMountSpecialAnimOpcode(mountSpecial);
+    });
 
     return true;
 }

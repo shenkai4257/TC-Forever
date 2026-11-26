@@ -27,7 +27,6 @@ public:
     GenericMageStrategyActionNodeFactory()
     {
         creators["frostbolt"] = &frostbolt;
-        creators["frostfire bolt"] = &frostfire_bolt;
         creators["scorch"] = &scorch;
         creators["fireball"] = &fireball;
     }
@@ -118,15 +117,13 @@ void MageBoostStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     if (tab == MAGE_TAB_ARCANE)
     {
         triggers.push_back(new TriggerNode("arcane power", { NextAction("arcane power", 29.0f) }));
-        triggers.push_back(new TriggerNode("icy veins", { NextAction("icy veins", 28.5f) }));
-    }
+        }
     else if (tab == MAGE_TAB_FIRE)
     {
         if (bot->HasSpell(SPELL_FROSTFIRE_BOLT) && bot->HasAura(SPELL_ICE_SHARDS))
         { // Frostfire
             triggers.push_back(new TriggerNode("combustion", { NextAction("combustion", 18.0f) }));
-            triggers.push_back(new TriggerNode("icy veins", { NextAction("icy veins", 17.5f) }));
-        }
+                }
         else
         { // Fire
             triggers.push_back(new TriggerNode("combustion", { NextAction("combustion", 18.0f) }));
@@ -135,8 +132,7 @@ void MageBoostStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     else if (tab == MAGE_TAB_FROST)  // Frost
     {
         triggers.push_back(new TriggerNode("cold snap", { NextAction("cold snap", 28.0f) }));
-        triggers.push_back(new TriggerNode("icy veins", { NextAction("icy veins", 27.5f) }));
-    }
+        }
 }
 
 void MageCcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
@@ -168,8 +164,7 @@ void MageAoeStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
 
         triggers.push_back(new TriggerNode("flamestrike active and medium aoe", { NextAction("blizzard", 24.0f) }));
         triggers.push_back(new TriggerNode("firestarter", { NextAction("flamestrike", 40.0f) }));
-        triggers.push_back(new TriggerNode("living bomb on attackers", { NextAction("living bomb on attackers", 21.0f) }));
-    }
+        }
     else if (tab == MAGE_TAB_FROST)
     {
         triggers.push_back(new TriggerNode("flamestrike active and medium aoe", { NextAction("blizzard", 24.0f) }));

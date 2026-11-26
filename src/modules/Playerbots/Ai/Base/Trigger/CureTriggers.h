@@ -50,12 +50,4 @@ public:
     bool IsActive() override;
 };
 
-class NeedWorldBuffTrigger : public Trigger
-{
-public:
-    NeedWorldBuffTrigger(PlayerbotAI* botAI) : Trigger(botAI) {}
-
-    bool IsActive() override;
-};
-
 #endif

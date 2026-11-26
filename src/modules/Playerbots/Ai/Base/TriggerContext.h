@@ -188,7 +188,6 @@ public:
         creators["vehicle near"] = &TriggerContext::vehicle_near;
         creators["in vehicle"] = &TriggerContext::in_vehicle;
 
-        creators["need world buff"] = &TriggerContext::need_world_buff;
         creators["falling"] = &TriggerContext::falling;
         creators["falling far"] = &TriggerContext::falling_far;
         creators["move stuck"] = &TriggerContext::move_stuck;
@@ -387,7 +386,6 @@ private:
     static Trigger* in_vehicle(PlayerbotAI* botAI) { return new InVehicleTrigger(botAI); }
     static Trigger* vehicle_near(PlayerbotAI* botAI) { return new VehicleNearTrigger(botAI); }
     static Trigger* near_dark_portal(PlayerbotAI* botAI) { return new NearDarkPortalTrigger(botAI); }
-    static Trigger* need_world_buff(PlayerbotAI* botAI) { return new NeedWorldBuffTrigger(botAI); }
     static Trigger* falling(PlayerbotAI* botAI) { return new IsFallingTrigger(botAI); }
     static Trigger* falling_far(PlayerbotAI* botAI) { return new IsFallingFarTrigger(botAI); }
     static Trigger* move_stuck(PlayerbotAI* botAI) { return new MoveStuckTrigger(botAI); }

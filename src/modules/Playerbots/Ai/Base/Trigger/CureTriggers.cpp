@@ -6,7 +6,6 @@
 
 #include "CureTriggers.h"
 #include "Playerbots.h"
-#include "WorldBuffAction.h"
 
 bool NeedCureTrigger::IsActive()
 {
@@ -25,4 +24,3 @@ bool PartyMemberNeedCureTrigger::IsActive()
     return target && target->IsInWorld();
 }
 
-bool NeedWorldBuffTrigger::IsActive() { return !WorldBuffAction::NeedWorldBuffs(bot).empty(); }

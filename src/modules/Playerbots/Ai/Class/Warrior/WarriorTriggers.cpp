@@ -8,11 +8,6 @@
 #include "SpellHistory.h"
 #include "Playerbots.h"
 
-namespace
-{
-constexpr uint32 SPELL_COMMANDING_PRESENCE_RANKS[] = { 12318, 12857, 12858, 12860, 12861 };
-}
-
 bool BloodrageBuffTrigger::IsActive()
 {
     return AI_VALUE2(uint8, "health", "self target") >= sPlayerbotAIConfig.MediumHealth &&
@@ -44,19 +39,8 @@ bool BattleShoutTrigger::IsActive()
     if (!bsApValue)
         return false;
 
-    static const float commandingPresenceBonus[]   = {
-        0.05f, 0.10f, 0.15f, 0.20f, 0.25f };
-
-    float cpBonus = 0.0f;
-    for (int rank = 4; rank >= 0; --rank)
-    {
-        if (bot->HasAura(SPELL_COMMANDING_PRESENCE_RANKS[rank]))
-        {
-            cpBonus = commandingPresenceBonus[rank];
-            break;
-        }
-    }
-    int32 effectiveBsAp = int32(bsApValue * (1.0f + cpBonus));
+    // 1.60 has no Commanding Presence talent (WotLK): the shout AP value is used as-is.
+    int32 effectiveBsAp = bsApValue;
 
     static char const* blessingNames[] = {
         "blessing of might", "greater blessing of might", nullptr

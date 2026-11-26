@@ -226,9 +226,13 @@ bool GuildTaskMgr::CreateKillTask(Player* player, uint32 guildId)
     std::vector<uint32> ids;
 
     uint32 level = player->GetLevel();
+    // 12.x moved the creature level into creature_classic_level (Forever's vanilla level table);
+    // Classification replaced the old Rank column (values 2/4 match CREATURE_ELITE_*).
     QueryResult results = WorldDatabase.PQuery(
-        "SELECT ct.Entry, c.map, c.position_x, c.position_y, ct.Name FROM creature_template ct "
-        "JOIN creature c ON ct.Entry = c.id WHERE ct.MaxLevel < {} AND ct.MinLevel > {} AND ct.Rank = {} ",
+        "SELECT ct.entry, c.map, c.position_x, c.position_y, ct.name FROM creature_template ct "
+        "JOIN creature c ON ct.entry = c.id "
+        "JOIN creature_classic_level cl ON cl.entry = ct.entry "
+        "WHERE cl.level_max < {} AND cl.level_min > {} AND ct.Classification = {} ",
         level + 4, level - 3, rank);
     if (results)
     {
@@ -1096,7 +1100,7 @@ void GuildTaskMgr::CleanupAdverts()
 {
     uint32 deliverTime = time(nullptr) - sPlayerbotAIConfig.MinGuildTaskChangeTime;
     QueryResult result = CharacterDatabase.PQuery(
-        "SELECT id, receiver FROM mail WHERE subject LIKE 'Guild Task%%' AND deliver_time <= {}", deliverTime);
+        "SELECT id, receiver FROM mail WHERE subject LIKE 'Guild Task%' AND deliver_time <= {}", deliverTime);
     if (!result)
         return;
 
@@ -1114,7 +1118,7 @@ void GuildTaskMgr::CleanupAdverts()
 
     if (count > 0)
     {
-        CharacterDatabase.PExecute("DELETE FROM mail WHERE subject LIKE 'Guild Task%%' AND deliver_time <= {}",
+        CharacterDatabase.PExecute("DELETE FROM mail WHERE subject LIKE 'Guild Task%' AND deliver_time <= {}",
                                   deliverTime);
         TC_LOG_INFO("playerbots", "{} old gtask adverts removed", count);
     }
@@ -1125,7 +1129,7 @@ void GuildTaskMgr::RemoveDuplicatedAdverts()
     uint32 deliverTime = time(nullptr);
     QueryResult result = CharacterDatabase.PQuery(
         "SELECT m.id, m.receiver FROM (SELECT MAX(id) AS id, subject, receiver FROM mail WHERE subject LIKE 'Guild "
-        "Task%%' "
+        "Task%' "
         "AND deliver_time <= {} GROUP BY subject, receiver) q JOIN mail m ON m.subject = q.subject WHERE m.id <> q.id "
         "AND m.deliver_time <= {}",
         deliverTime, deliverTime);

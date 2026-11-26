@@ -5,6 +5,7 @@
  */
 
 #include "AiFactory.h"
+#include "Api/ClassicSpec.h"
 #include "DruidAiObjectContext.h"
 #include "Engine.h"
 #include "Group.h"
@@ -63,23 +64,38 @@ AiObjectContext* AiFactory::createAiObjectContext(Player* player, PlayerbotAI* b
 
 uint8 AiFactory::GetPlayerSpecTab(Player* bot)
 {
-    std::map<uint8, uint32> tabs = GetPlayerSpecTabs(bot);
-
-    if (bot->GetLevel() >= 10 && ((tabs[0] + tabs[1] + tabs[2]) > 0))
+    // 1.60 has no talent UI: the spec comes from Classic::EffectiveSpecId (override or learned
+    // signature spells), mapped to the vanilla talent tab each retail spec id corresponds to.
+    // GetPlayerSpecTabs reads retail talent data that Classic bots never fill, so the old
+    // empty-table path always fell into the hardcoded default below.
+    uint32 const spec = Playerbot::Classic::EffectiveSpecId(bot);
+    if (spec)
     {
-        int8 tab = -1;
-        uint32 max = 0;
-        for (uint32 i = 0; i < uint32(3); i++)
+        switch (bot->GetClass())
         {
-            if (tab == -1 || max < tabs[i])
-            {
-                tab = i;
-                max = tabs[i];
-            }
+            case CLASS_MAGE:
+                return spec == 62 ? uint8(MAGE_TAB_ARCANE) : spec == 63 ? uint8(MAGE_TAB_FIRE) : uint8(MAGE_TAB_FROST);
+            case CLASS_PRIEST:
+                return spec == 256 ? uint8(PRIEST_TAB_DISCIPLINE) : spec == 257 ? uint8(PRIEST_TAB_HOLY) : uint8(PRIEST_TAB_SHADOW);
+            case CLASS_PALADIN:
+                return spec == 65 ? uint8(PALADIN_TAB_HOLY) : spec == 66 ? uint8(PALADIN_TAB_PROTECTION) : uint8(PALADIN_TAB_RETRIBUTION);
+            case CLASS_WARLOCK:
+                return spec == 262 ? uint8(WARLOCK_TAB_AFFLICTION) : spec == 263 ? uint8(WARLOCK_TAB_DEMONOLOGY) : uint8(WARLOCK_TAB_DESTRUCTION);
+            case CLASS_WARRIOR:
+                return spec == 71 ? uint8(WARRIOR_TAB_ARMS) : spec == 72 ? uint8(WARRIOR_TAB_FURY) : uint8(WARRIOR_TAB_PROTECTION);
+            case CLASS_HUNTER:
+                return spec == 253 ? uint8(HUNTER_TAB_BEAST_MASTERY) : spec == 254 ? uint8(HUNTER_TAB_MARKSMANSHIP) : uint8(HUNTER_TAB_SURVIVAL);
+            case CLASS_SHAMAN:
+                return spec == 262 ? uint8(SHAMAN_TAB_ELEMENTAL) : spec == 263 ? uint8(SHAMAN_TAB_ENHANCEMENT) : uint8(SHAMAN_TAB_RESTORATION);
+            case CLASS_DRUID:
+                return spec == 102 ? uint8(DRUID_TAB_BALANCE) : uint8(DRUID_TAB_RESTORATION);  // 103 feral
+            case CLASS_ROGUE:
+                return spec == 259 ? uint8(ROGUE_TAB_ASSASSINATION) : spec == 260 ? uint8(ROGUE_TAB_COMBAT) : uint8(ROGUE_TAB_SUBTLETY);
+            default:
+                break;
         }
-        return tab;
     }
-    else
+
     {
         uint8 tab = 0;
 

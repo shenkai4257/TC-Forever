@@ -146,8 +146,7 @@ bool CastCreateSoulstoneAction::isUseful()
         16893,  // Soulstone
         16895,  // Greater Soulstone
         16896,  // Major Soulstone
-        22116,  // Master Soulstone
-        36895   // Demonic Soulstone
+        22116   // Master Soulstone (1.60 highest tier)
     };
 
     // Check if the bot already has any soulstone
@@ -206,7 +205,7 @@ bool DestroySoulShardAction::Execute(Event /*event*/)
 // Checks if the target has a soulstone aura
 static bool HasSoulstoneAura(Unit* unit)
 {
-    static const std::vector<uint32> soulstoneAuraIds = {20707, 20762, 20763, 20764, 20765, 27239, 47883};
+    static const std::vector<uint32> soulstoneAuraIds = {20707, 20762, 20763, 20764, 20765};
     for (uint32 spellId : soulstoneAuraIds)
         if (unit->HasAura(spellId))
             return true;

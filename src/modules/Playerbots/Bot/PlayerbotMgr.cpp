@@ -359,9 +359,11 @@ void PlayerbotMgr::CancelLogout()
 
         if (bot->GetSession()->isLogingOut())
         {
-            WorldPacket raw(CMSG_LOGOUT_CANCEL);
-            WorldPackets::Character::LogoutCancel data(std::move(raw));
-            bot->GetSession()->HandleLogoutCancelOpcode(data);
+            botAI->RunOnWorldThread("logout cancel", [](Player* bot) {
+                WorldPacket raw(CMSG_LOGOUT_CANCEL);
+                WorldPackets::Character::LogoutCancel data(std::move(raw));
+                bot->GetSession()->HandleLogoutCancelOpcode(data);
+            });
             botAI->TellMaster(PlayerbotTextMgr::instance().GetBotTextOrDefault(
                 "logout_cancel", "Logout cancelled!", {}));
         }
@@ -380,9 +382,11 @@ void PlayerbotMgr::CancelLogout()
 
         if (bot->GetSession()->isLogingOut())
         {
-            WorldPacket raw(CMSG_LOGOUT_CANCEL);
-            WorldPackets::Character::LogoutCancel data(std::move(raw));
-            bot->GetSession()->HandleLogoutCancelOpcode(data);
+            botAI->RunOnWorldThread("logout cancel", [](Player* bot) {
+                WorldPacket raw(CMSG_LOGOUT_CANCEL);
+                WorldPackets::Character::LogoutCancel data(std::move(raw));
+                bot->GetSession()->HandleLogoutCancelOpcode(data);
+            });
         }
     }
 }
@@ -690,12 +694,15 @@ void PlayerbotHolder::OnBotLogin(Player* const bot)
         GET_PLAYERBOT_AI(bot)->GetGrouperType() != GrouperType::SOLO)
     {
         // TODO make action/config
-        // Make the bot join the world channel for chat
-        WorldPacket raw(CMSG_CHAT_JOIN_CHANNEL);
-        WorldPackets::Channel::JoinChannel packet(std::move(raw));
-        packet.ChannelName = "World";
-        packet.Password.clear();
-        bot->GetSession()->HandleJoinChannel(packet);
+        // Make the bot join the world channel for chat. ChannelMgr/Channel state is shared across
+        // maps, so the join runs in the world tick window.
+        GET_PLAYERBOT_AI(bot)->RunOnWorldThread("join world channel", [](Player* bot) {
+            WorldPacket raw(CMSG_CHAT_JOIN_CHANNEL);
+            WorldPackets::Channel::JoinChannel packet(std::move(raw));
+            packet.ChannelName = "World";
+            packet.Password.clear();
+            bot->GetSession()->HandleJoinChannel(packet);
+        });
     }
 
     // join the constant channels available in the current zone (12.x derives the channel
@@ -871,6 +878,11 @@ std::string const PlayerbotHolder::ProcessBotCommand(std::string const cmd, Obje
     {
         PlayerbotFactory factory(bot, bot->GetLevel());
         factory.Randomize(true);
+        // Reset channel, not the level-up channel: no GiveLevel happens here and no levelup packet
+        // reaches AutoMaintenanceOnLevelupAction, and the persistence branch inside Randomize skips
+        // the talent tree. Place the build here - the walk also trims a bot that holds more ranks
+        // than its level pays for.
+        factory.InitTalentsTree(true);
         return "ok";
     }
     else if (cmd == "refresh")
@@ -1089,7 +1101,7 @@ std::vector<std::string> PlayerbotHolder::HandlePlayerbotCommand(char const* arg
 
     if (!strcmp(cmd, "tweak"))
     {
-        sPlayerbotAIConfig.TweakValue = sPlayerbotAIConfig.TweakValue++;
+        sPlayerbotAIConfig.TweakValue = (sPlayerbotAIConfig.TweakValue + 1) % 3;
         if (sPlayerbotAIConfig.TweakValue > 2)
             sPlayerbotAIConfig.TweakValue = 0;
 
@@ -1527,19 +1539,6 @@ std::string const PlayerbotHolder::LookupBots(Player*)
     return ret_msg;
 }
 
-uint32 PlayerbotHolder::GetPlayerbotsCountByClass(uint32 cls)
-{
-    uint32 count = 0;
-    for (PlayerBotMap::const_iterator it = GetPlayerBotsBegin(); it != GetPlayerBotsEnd(); ++it)
-    {
-        Player* const bot = it->second;
-        if (bot && bot->IsInWorld() && bot->GetClass() == cls)
-        {
-            count++;
-        }
-    }
-    return count;
-}
 
 PlayerbotMgr::PlayerbotMgr(Player* const master) : PlayerbotHolder(), master(master), lastErrorTell(0) {}
 

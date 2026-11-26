@@ -678,8 +678,7 @@ bool IsDpsCooldownAction(Player* bot, Action* action)
             break;
 
         case CLASS_HUNTER:
-            isClassCooldown = dynamic_cast<CastKillCommandAction*>(action) ||
-                dynamic_cast<CastRapidFireAction*>(action) ||
+            isClassCooldown = dynamic_cast<CastRapidFireAction*>(action) ||
                 dynamic_cast<CastReadinessAction*>(action) ||
                 dynamic_cast<CastBestialWrathAction*>(action);
             break;
@@ -687,13 +686,8 @@ bool IsDpsCooldownAction(Player* bot, Action* action)
         case CLASS_MAGE:
             isClassCooldown = dynamic_cast<CastArcanePowerAction*>(action) ||
                 dynamic_cast<CastCombustionAction*>(action) ||
-                dynamic_cast<CastIcyVeinsAction*>(action) ||
                 dynamic_cast<CastColdSnapAction*>(action) ||
                 dynamic_cast<CastPresenceOfMindAction*>(action);
-            break;
-
-        case CLASS_SHAMAN:
-            isClassCooldown = dynamic_cast<CastElementalMasteryAction*>(action);
             break;
 
         case CLASS_PALADIN:
@@ -756,35 +750,6 @@ bool IsTauntAction(Player* bot, Action* action)
         case CLASS_WARRIOR:
             return dynamic_cast<CastTauntAction*>(action) ||
                 dynamic_cast<CastChallengingShoutAction*>(action);
-
-        default:
-            return false;
-    }
-}
-
-bool IsAoeThreatAction(Player* bot, Action* action)
-{
-    if (!PlayerbotAI::IsTank(bot))
-        return false;
-
-    switch (bot->GetClass())
-    {
-        case CLASS_DRUID:
-            return dynamic_cast<CastSwipeBearAction*>(action) ||
-                dynamic_cast<CastMaulAction*>(action) || // Hits multiple targets with the Glyph
-                dynamic_cast<CastDemoralizingRoarAction*>(action) ||
-                dynamic_cast<CastBerserkAction*>(action); // Causes Mangle (Bear) to chain
-
-        case CLASS_PALADIN:
-            return dynamic_cast<CastConsecrationAction*>(action) ||
-                dynamic_cast<CastHammerOfTheRighteousAction*>(action);
-
-        case CLASS_WARRIOR:
-            return dynamic_cast<CastThunderClapAction*>(action) ||
-                dynamic_cast<CastShockwaveAction*>(action) ||
-                dynamic_cast<CastCleaveAction*>(action) ||
-                dynamic_cast<CastDemoralizingShoutAction*>(action) ||
-                dynamic_cast<CastDemoralizingShoutWithoutLifeTimeCheckAction*>(action);
 
         default:
             return false;

@@ -57,59 +57,16 @@ public:
 
 // Proc and Boost Triggers
 
-class HotStreakTrigger : public HasAuraTrigger
-{
-public:
-    HotStreakTrigger(PlayerbotAI* botAI) : HasAuraTrigger(botAI, "hot streak") {}
-};
-
 class FirestarterTrigger : public HasAuraTrigger
 {
 public:
     FirestarterTrigger(PlayerbotAI* botAI) : HasAuraTrigger(botAI, "firestarter") {}
 };
 
-class MissileBarrageTrigger : public HasAuraTrigger
-{
-public:
-    MissileBarrageTrigger(PlayerbotAI* botAI) : HasAuraTrigger(botAI, "missile barrage") {}
-};
-
-class ArcaneBlastStackTrigger : public HasAuraStackTrigger
-{
-public:
-    ArcaneBlastStackTrigger(PlayerbotAI* botAI) : HasAuraStackTrigger(botAI, "arcane blast", 4, 1) {}
-};
-
-class ArcaneBlast4StacksAndMissileBarrageTrigger : public TwoTriggers
-{
-public:
-    ArcaneBlast4StacksAndMissileBarrageTrigger(PlayerbotAI* botAI)
-        : TwoTriggers(botAI, "arcane blast stack", "missile barrage") {}
-};
-
 class CombustionTrigger : public BoostTrigger
 {
 public:
     CombustionTrigger(PlayerbotAI* botAI) : BoostTrigger(botAI, "combustion") {}
-};
-
-class IcyVeinsCooldownTrigger : public SpellCooldownTrigger
-{
-public:
-    IcyVeinsCooldownTrigger(PlayerbotAI* botAI) : SpellCooldownTrigger(botAI, "icy veins") {}
-};
-
-class ColdSnapTrigger : public SpellCooldownTrigger
-{
-public:
-    ColdSnapTrigger(PlayerbotAI* botAI) : SpellCooldownTrigger(botAI, "icy veins") {}
-};
-
-class IcyVeinsTrigger : public BoostTrigger
-{
-public:
-    IcyVeinsTrigger(PlayerbotAI* botAI) : BoostTrigger(botAI, "icy veins") {}
 };
 
 class ArcanePowerTrigger : public BoostTrigger
@@ -158,20 +115,6 @@ public:
 
 // Damage and Debuff Triggers
 
-class LivingBombTrigger : public DebuffTrigger
-{
-public:
-    LivingBombTrigger(PlayerbotAI* botAI) : DebuffTrigger(botAI, "living bomb", 1, true) {}
-    bool IsActive() override { return BuffTrigger::IsActive(); }
-};
-
-class LivingBombOnAttackersTrigger : public DebuffOnAttackerTrigger
-{
-public:
-    LivingBombOnAttackersTrigger(PlayerbotAI* botAI) : DebuffOnAttackerTrigger(botAI, "living bomb", true) {}
-    bool IsActive() override { return BuffTrigger::IsActive(); }
-};
-
 class FireballTrigger : public DebuffTrigger
 {
 public:
@@ -189,18 +132,6 @@ class PyroblastTrigger : public DebuffTrigger
 {
 public:
     PyroblastTrigger(PlayerbotAI* botAI) : DebuffTrigger(botAI, "pyroblast", 1, true) {}
-};
-
-class FrostfireBoltTrigger : public DebuffTrigger
-{
-public:
-    FrostfireBoltTrigger(PlayerbotAI* botAI) : DebuffTrigger(botAI, "frostfire bolt", 1, true) {}
-};
-
-class FingersOfFrostTrigger : public HasAuraTrigger
-{
-public:
-    FingersOfFrostTrigger(PlayerbotAI* botAI) : HasAuraTrigger(botAI, "fingers of frost") {}
 };
 
 class BrainFreezeTrigger : public HasAuraTrigger

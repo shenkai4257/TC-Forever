@@ -15,6 +15,20 @@ exist before the module first runs.
 
 ## Fresh install
 
+The fastest path is the published database baseline: release `db-20261126`
+(`forever-playerbot-database-2026-11-26.7z`, ~163 MB). It contains a full `world` dump
+(including all playerbots tables that live in `world`), a full `hotfixes` dump, and the
+playerbots tables of `characters` - no `auth` data and no player characters/accounts.
+After core creates the four databases, import each file into its database:
+
+```bash
+mysql -h127.0.0.1 -P3317 -utrinity world      < world.sql
+mysql -h127.0.0.1 -P3317 -utrinity hotfixes   < hotfixes.sql
+mysql -h127.0.0.1 -P3317 -utrinity characters < characters_playerbots.sql
+```
+
+Otherwise build the tables and data from the files in this directory:
+
 1. Start the worldserver once so that core creates `world` and `characters`.
 2. Create the module tables:
 

@@ -485,6 +485,10 @@ std::string const ChatHelper::FormatProfessionLink(Player* player, uint32 skill)
 
 std::string const ChatHelper::FormatItem(ItemTemplate const* proto, uint32 count, uint32 total)
 {
+    // Single choke point: every caller formats GetItemTemplate()/GetMItem() results that can be null.
+    if (!proto)
+        return "|cff007dd0unknown item|r";
+
     char color[32];
     snprintf(color, sizeof(color), "%x", ItemQualityColors[proto->GetQuality()]);
 

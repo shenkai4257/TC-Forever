@@ -86,7 +86,6 @@ public:
         creators["tranquilizing shot enrage"] = &HunterTriggerFactoryInternal::remove_enrage;
         creators["tranquilizing shot magic"] = &HunterTriggerFactoryInternal::remove_magic;
         creators["immolation trap no cd"] = &HunterTriggerFactoryInternal::immolation_trap_no_cd;
-        creators["kill command"] = &HunterTriggerFactoryInternal::kill_command;
         creators["intimidation"] = &HunterTriggerFactoryInternal::intimidation;
         creators["volley channel check"] = &HunterTriggerFactoryInternal::volley_channel_check;
     }
@@ -117,7 +116,6 @@ private:
     static Trigger* remove_enrage(PlayerbotAI* botAI) { return new TargetRemoveEnrageTrigger(botAI); }
     static Trigger* remove_magic(PlayerbotAI* botAI) { return new TargetRemoveMagicTrigger(botAI); }
     static Trigger* immolation_trap_no_cd(PlayerbotAI* botAI) { return new ImmolationTrapNoCdTrigger(botAI); }
-    static Trigger* kill_command(PlayerbotAI* botAI) { return new KillCommandTrigger(botAI); }
     static Trigger* intimidation(PlayerbotAI* botAI) { return new IntimidationTrigger(botAI); }
     static Trigger* volley_channel_check(PlayerbotAI* botAI) { return new VolleyChannelCheckTrigger(botAI); }
 };
@@ -142,7 +140,6 @@ public:
         creators["scorpid sting"] = &HunterAiObjectContextInternal::scorpid_sting;
         creators["hunter's mark"] = &HunterAiObjectContextInternal::hunters_mark;
         creators["mend pet"] = &HunterAiObjectContextInternal::mend_pet;
-        creators["kill command"] = &HunterAiObjectContextInternal::kill_command;
         creators["revive pet"] = &HunterAiObjectContextInternal::revive_pet;
         creators["call pet"] = &HunterAiObjectContextInternal::call_pet;
         creators["black arrow"] = &HunterAiObjectContextInternal::black_arrow;
@@ -197,7 +194,6 @@ private:
     static Action* scorpid_sting(PlayerbotAI* botAI) { return new CastScorpidStingAction(botAI); }
     static Action* hunters_mark(PlayerbotAI* botAI) { return new CastHuntersMarkAction(botAI); }
     static Action* mend_pet(PlayerbotAI* botAI) { return new CastMendPetAction(botAI); }
-    static Action* kill_command(PlayerbotAI* botAI) { return new CastKillCommandAction(botAI); }
     static Action* revive_pet(PlayerbotAI* botAI) { return new CastRevivePetAction(botAI); }
     static Action* call_pet(PlayerbotAI* botAI) { return new CastCallPetAction(botAI); }
     static Action* black_arrow(PlayerbotAI* botAI) { return new CastBlackArrowAction(botAI); }
